@@ -101,8 +101,8 @@ mod tests {
     use crate::circuit::test::TestConstraintSystem;
     use crate::fr32::fr_into_bytes;
     use crate::settings;
+    use crate::stacked::hash::hash2 as vanilla_hash2;
     use crate::util::bytes_into_boolean_vec;
-    use crate::zigzag::hash::hash2 as vanilla_hash2;
 
     #[test]
     fn test_hash2_circuit() {

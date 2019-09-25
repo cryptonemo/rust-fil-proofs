@@ -8,7 +8,7 @@ use memmap::MmapOptions;
 use paired::bls12_381::Bls12;
 use paired::Engine;
 
-use crate::caches::{get_zigzag_params, get_zigzag_verifying_key};
+use crate::caches::{get_stacked_params, get_stacked_verifying_key};
 use crate::constants::{
     MINIMUM_RESERVED_BYTES_FOR_PIECE_IN_FULLY_ALIGNED_SECTOR as MINIMUM_PIECE_SIZE,
     MINIMUM_RESERVED_LEAVES_FOR_PIECE_IN_SECTOR as MIN_NUM_LEAVES, POREP_MINIMUM_CHALLENGES,
@@ -26,7 +26,7 @@ use crate::types::{
 };
 
 use storage_proofs::circuit::multi_proof::MultiProof;
-use storage_proofs::circuit::zigzag::ZigZagCompound;
+use storage_proofs::circuit::stacked::StackedCompound;
 use storage_proofs::compound_proof::{self, CompoundProof};
 use storage_proofs::drgraph::DefaultTreeHasher;
 use storage_proofs::fr32::{bytes_into_fr, fr_into_bytes, Fr32Ary};
@@ -39,7 +39,7 @@ use storage_proofs::piece_inclusion_proof::{
 };
 use storage_proofs::porep::{replica_id, PoRep};
 use storage_proofs::sector::SectorId;
-use storage_proofs::zigzag::{self, ChallengeRequirements, Tau, ZigZagDrgPoRep};
+use storage_proofs::stacked::{self, ChallengeRequirements, StackedDrg, Tau};
 use tempfile::tempfile;
 
 mod post;
@@ -52,7 +52,7 @@ pub type Commitment = Fr32Ary;
 pub type ChallengeSeed = [u8; 32];
 type Tree = MerkleTree<PedersenDomain, <PedersenHasher as Hasher>::Function>;
 
-pub type PersistentAux = zigzag::PersistentAux<PedersenDomain>;
+pub type PersistentAux = stacked::PersistentAux<PedersenDomain>;
 
 #[derive(Clone, Debug)]
 pub struct SealOutput {
@@ -187,9 +187,9 @@ pub fn seal<T: AsRef<Path>>(
         partitions: Some(usize::from(PoRepProofPartitions::from(porep_config))),
     };
 
-    let compound_public_params = ZigZagCompound::setup(&compound_setup_params)?;
+    let compound_public_params = StackedCompound::setup(&compound_setup_params)?;
 
-    let (tau, (p_aux, t_aux)) = ZigZagDrgPoRep::replicate(
+    let (tau, (p_aux, t_aux)) = StackedDrg::replicate(
         &compound_public_params.vanilla_params,
         &replica_id,
         &mut data,
@@ -213,26 +213,26 @@ pub fn seal<T: AsRef<Path>>(
 
     let public_tau = tau;
 
-    let public_inputs = zigzag::PublicInputs {
+    let public_inputs = stacked::PublicInputs {
         replica_id,
         tau: Some(public_tau.clone()),
         k: None,
         seed: None,
     };
 
-    let private_inputs = zigzag::PrivateInputs::<DefaultTreeHasher> {
+    let private_inputs = stacked::PrivateInputs::<DefaultTreeHasher> {
         p_aux: p_aux.clone(),
         t_aux,
     };
 
-    let groth_params = get_zigzag_params(porep_config)?;
+    let groth_params = get_stacked_params(porep_config)?;
 
     info!(
         "got groth params ({}) while sealing",
         u64::from(PaddedBytesAmount::from(porep_config))
     );
 
-    let proof = ZigZagCompound::prove(
+    let proof = StackedCompound::prove(
         &compound_public_params,
         &public_inputs,
         &private_inputs,
@@ -308,17 +308,17 @@ pub fn verify_seal(
     let compound_public_params: compound_proof::PublicParams<
         '_,
         Bls12,
-        ZigZagDrgPoRep<'_, DefaultTreeHasher>,
-    > = ZigZagCompound::setup(&compound_setup_params)?;
+        StackedDrg<'_, DefaultTreeHasher>,
+    > = StackedCompound::setup(&compound_setup_params)?;
 
-    let public_inputs = zigzag::PublicInputs::<<DefaultTreeHasher as Hasher>::Domain> {
+    let public_inputs = stacked::PublicInputs::<<DefaultTreeHasher as Hasher>::Domain> {
         replica_id,
         tau: Some(Tau { comm_r, comm_d }),
         seed: None,
         k: None,
     };
 
-    let verifying_key = get_zigzag_verifying_key(porep_config)?;
+    let verifying_key = get_stacked_verifying_key(porep_config)?;
 
     info!(
         "got verifying key ({}) while verifying seal",
@@ -331,7 +331,7 @@ pub fn verify_seal(
         &verifying_key,
     )?;
 
-    ZigZagCompound::verify(
+    StackedCompound::verify(
         &compound_public_params,
         &public_inputs,
         &proof,
@@ -414,7 +414,7 @@ pub fn get_unsealed_range<T: Into<PathBuf> + AsRef<Path>>(
     let f_out = File::create(output_path)?;
     let mut buf_writer = BufWriter::new(f_out);
 
-    let unsealed = ZigZagDrgPoRep::extract_all(
+    let unsealed = StackedDrg::extract_all(
         &public_params_for_extraction(
             PaddedBytesAmount::from(porep_config),
             usize::from(PoRepProofPartitions::from(porep_config)),

@@ -4,14 +4,14 @@ use crate::drgraph::Graph;
 use crate::error::Result;
 use crate::hasher::Hasher;
 use crate::proof::ProofScheme;
-use crate::zigzag::{
+use crate::stacked::{
     challenges::ChallengeRequirements,
-    graph::ZigZagBucketGraph,
+    graph::StackedBucketGraph,
     params::{PrivateInputs, Proof, PublicInputs, PublicParams, SetupParams},
-    proof::ZigZagDrgPoRep,
+    proof::StackedDrg,
 };
 
-impl<'a, 'c, H: 'static + Hasher> ProofScheme<'a> for ZigZagDrgPoRep<'c, H> {
+impl<'a, 'c, H: 'static + Hasher> ProofScheme<'a> for StackedDrg<'c, H> {
     type PublicParams = PublicParams<H>;
     type SetupParams = SetupParams;
     type PublicInputs = PublicInputs<<H as Hasher>::Domain>;
@@ -20,7 +20,7 @@ impl<'a, 'c, H: 'static + Hasher> ProofScheme<'a> for ZigZagDrgPoRep<'c, H> {
     type Requirements = ChallengeRequirements;
 
     fn setup(sp: &Self::SetupParams) -> Result<Self::PublicParams> {
-        let graph = ZigZagBucketGraph::<H>::new_zigzag(
+        let graph = StackedBucketGraph::<H>::new_stacked(
             sp.drg.nodes,
             sp.drg.degree,
             sp.drg.expansion_degree,

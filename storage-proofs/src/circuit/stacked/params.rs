@@ -5,12 +5,12 @@ use fil_sapling_crypto::circuit::{boolean::Boolean, num};
 use fil_sapling_crypto::jubjub::JubjubEngine;
 use paired::bls12_381::{Bls12, Fr};
 
-use crate::circuit::zigzag::{column_proof::ColumnProof, encoding_proof::EncodingProof};
+use crate::circuit::stacked::{column_proof::ColumnProof, encoding_proof::EncodingProof};
 use crate::circuit::{por::PoRCircuit, variables::Root};
 use crate::drgraph::Graph;
 use crate::hasher::Hasher;
 use crate::merkle::MerkleProof;
-use crate::zigzag::{
+use crate::stacked::{
     Proof as VanillaProof, PublicParams, ReplicaColumnProof as VanillaReplicaColumnProof,
 };
 

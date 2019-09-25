@@ -1,6 +1,6 @@
-//! ZigZagDrgPorep is a layered PoRep which replicates layer by layer.
+//! StackedDrg is a layered PoRep which replicates layer by layer.
 //! Between layers, the graph is 'reversed' in such a way that the dependencies expand with each iteration.
-//! This reversal is not a straightforward inversion -- so we coin the term 'zigzag' to describe the transformation.
+//! This reversal is not a straightforward inversion -- so we coin the term 'stacked' to describe the transformation.
 //! Each graph can be divided into base and expansion components.
 //! The 'base' component is an ordinary DRG. The expansion component attempts to add a target (expansion_degree) number of connections
 //! between nodes in a reversible way. Expansion connections are therefore simply inverted at each layer.
@@ -27,9 +27,9 @@ pub use self::challenges::{ChallengeRequirements, LayerChallenges};
 pub use self::column::{Column, RawColumn};
 pub use self::column_proof::ColumnProof;
 pub use self::encoding_proof::EncodingProof;
-pub use self::graph::{ZigZagBucketGraph, ZigZagGraph, EXP_DEGREE};
+pub use self::graph::{StackedBucketGraph, StackedGraph, EXP_DEGREE};
 pub use self::params::{
     PersistentAux, PrivateInputs, Proof, PublicInputs, PublicParams, ReplicaColumnProof,
     SetupParams, Tau, TemporaryAux,
 };
-pub use self::proof::ZigZagDrgPoRep;
+pub use self::proof::StackedDrg;

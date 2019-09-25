@@ -8,18 +8,18 @@ use crate::hasher::Hasher;
 use crate::parameter_cache::ParameterSetMetadata;
 use crate::settings;
 
-/// The expansion degree used for ZigZag Graphs.
+/// The expansion degree used for Stacked Graphs.
 pub const EXP_DEGREE: usize = 8;
 
 lazy_static! {
     // This parents cache is currently used for the *expanded parents only*, generated
-    // by the expensive Feistel operations in the ZigZag, it doesn't contain the
+    // by the expensive Feistel operations in the Stacked, it doesn't contain the
     // "base" (in the `Graph` terminology) parents, which are cheaper to compute.
     // It is indexed by the `Graph.identifier`, to ensure that the right cache is used.
     static ref PARENT_CACHE: Arc<RwLock<HashMap<String, ParentCache>>> = Arc::new(RwLock::new(HashMap::new()));
 }
 
-// ZigZagGraph will hold two different (but related) `ParentCache`,
+// StackedGraph will hold two different (but related) `ParentCache`,
 // the first one for the `forward` direction and the second one for the `reversed`.
 #[derive(Debug, Clone)]
 struct ParentCache {
@@ -86,7 +86,7 @@ impl ParentCache {
 }
 
 #[derive(Debug, Clone)]
-pub struct ZigZagGraph<H, G>
+pub struct StackedGraph<H, G>
 where
     H: Hasher,
     G: Graph<H> + 'static,
@@ -101,9 +101,9 @@ where
     _h: PhantomData<H>,
 }
 
-pub type ZigZagBucketGraph<H> = ZigZagGraph<H, BucketGraph<H>>;
+pub type StackedBucketGraph<H> = StackedGraph<H, BucketGraph<H>>;
 
-impl<H, G> ZigZagGraph<H, G>
+impl<H, G> StackedGraph<H, G>
 where
     H: Hasher,
     G: Graph<H> + ParameterSetMetadata,
@@ -129,10 +129,10 @@ where
         };
         let bg_id = base_graph.identifier();
 
-        let res = ZigZagGraph {
+        let res = StackedGraph {
             base_graph,
             id: format!(
-                "zigzag_graph::ZigZagGraph{{expansion_degree: {} base_graph: {} }}",
+                "stacked_graph::StackedGraph{{expansion_degree: {} base_graph: {} }}",
                 expansion_degree, bg_id,
             ),
             expansion_degree,
@@ -159,7 +159,7 @@ where
     }
 }
 
-impl<H, G> ParameterSetMetadata for ZigZagGraph<H, G>
+impl<H, G> ParameterSetMetadata for StackedGraph<H, G>
 where
     H: Hasher,
     G: Graph<H> + ParameterSetMetadata,
@@ -173,7 +173,7 @@ where
     }
 }
 
-impl<H, G> Graph<H> for ZigZagGraph<H, G>
+impl<H, G> Graph<H> for StackedGraph<H, G>
 where
     H: Hasher,
     G: Graph<H> + ParameterSetMetadata,
@@ -209,7 +209,7 @@ where
     }
 
     fn new(nodes: usize, base_degree: usize, expansion_degree: usize, seed: [u32; 7]) -> Self {
-        Self::new_zigzag(nodes, base_degree, expansion_degree, 0, seed)
+        Self::new_stacked(nodes, base_degree, expansion_degree, 0, seed)
     }
 
     fn forward(&self) -> bool {
@@ -217,7 +217,7 @@ where
     }
 }
 
-impl<'a, H, G> ZigZagGraph<H, G>
+impl<'a, H, G> StackedGraph<H, G>
 where
     H: Hasher,
     G: Graph<H> + ParameterSetMetadata,
@@ -333,7 +333,7 @@ where
         expanded_parents
     }
 
-    pub fn new_zigzag(
+    pub fn new_stacked(
         nodes: usize,
         base_degree: usize,
         expansion_degree: usize,
@@ -343,25 +343,25 @@ where
         Self::new(None, nodes, base_degree, expansion_degree, layer, seed)
     }
 
-    /// To zigzag a graph, we just toggle its reversed field.
+    /// To stacked a graph, we just toggle its reversed field.
     /// All the real work happens when we calculate node parents on-demand.
     // We always share the two caches (forward/reversed) between
-    // ZigZag graphs even if each graph will use only one of those
+    // Stacked graphs even if each graph will use only one of those
     // caches (depending of its direction). This allows to propagate
     // the caches across different layers, where consecutive even+odd
     // layers have inverse directions.
-    pub fn zigzag(&self) -> Self {
-        let mut zigzag = self.clone();
-        zigzag.reversed = !zigzag.reversed;
-        zigzag.layer += 1;
-        zigzag
+    pub fn stacked(&self) -> Self {
+        let mut stacked = self.clone();
+        stacked.reversed = !stacked.reversed;
+        stacked.layer += 1;
+        stacked
     }
 
-    pub fn zigzag_invert(&self) -> Self {
-        let mut zigzag = self.clone();
-        zigzag.reversed = !zigzag.reversed;
-        zigzag.layer -= 1;
-        zigzag
+    pub fn stacked_invert(&self) -> Self {
+        let mut stacked = self.clone();
+        stacked.reversed = !stacked.reversed;
+        stacked.layer -= 1;
+        stacked
     }
 
     pub fn layer(&self) -> usize {
@@ -449,19 +449,19 @@ where
     }
 }
 
-impl<H, G> PartialEq for ZigZagGraph<H, G>
+impl<H, G> PartialEq for StackedGraph<H, G>
 where
     H: Hasher,
     G: Graph<H>,
 {
-    fn eq(&self, other: &ZigZagGraph<H, G>) -> bool {
+    fn eq(&self, other: &StackedGraph<H, G>) -> bool {
         self.base_graph == other.base_graph
             && self.expansion_degree == other.expansion_degree
             && self.reversed == other.reversed
     }
 }
 
-impl<H, G> Eq for ZigZagGraph<H, G>
+impl<H, G> Eq for StackedGraph<H, G>
 where
     H: Hasher,
     G: Graph<H>,
@@ -505,7 +505,7 @@ mod tests {
         }
     }
 
-    impl<'a, H, G> ZigZagGraph<H, G>
+    impl<'a, H, G> StackedGraph<H, G>
     where
         H: Hasher,
         G: Graph<H> + ParameterSetMetadata,
@@ -516,23 +516,23 @@ mod tests {
     }
 
     #[test]
-    fn zigzag_graph_zigzags_pedersen() {
-        test_zigzag_graph_zigzags::<PedersenHasher>();
+    fn stacked_graph_stackeds_pedersen() {
+        test_stacked_graph_stackeds::<PedersenHasher>();
     }
 
     #[test]
-    fn zigzag_graph_zigzags_sha256() {
-        test_zigzag_graph_zigzags::<Sha256Hasher>();
+    fn stacked_graph_stackeds_sha256() {
+        test_stacked_graph_stackeds::<Sha256Hasher>();
     }
 
     #[test]
-    fn zigzag_graph_zigzags_blake2s() {
-        test_zigzag_graph_zigzags::<Blake2sHasher>();
+    fn stacked_graph_stackeds_blake2s() {
+        test_stacked_graph_stackeds::<Blake2sHasher>();
     }
 
-    fn test_zigzag_graph_zigzags<H: 'static + Hasher>() {
-        let g = ZigZagBucketGraph::<H>::new_zigzag(50, BASE_DEGREE, EXP_DEGREE, 0, new_seed());
-        let gz = g.zigzag();
+    fn test_stacked_graph_stackeds<H: 'static + Hasher>() {
+        let g = StackedBucketGraph::<H>::new_stacked(50, BASE_DEGREE, EXP_DEGREE, 0, new_seed());
+        let gz = g.stacked();
 
         assert_graph_ascending(g);
         assert_graph_descending(gz);
@@ -554,7 +554,7 @@ mod tests {
     }
 
     fn test_expansion_layer_0<H: 'static + Hasher>() {
-        let g = ZigZagBucketGraph::<H>::new_zigzag(25, BASE_DEGREE, EXP_DEGREE, 0, new_seed());
+        let g = StackedBucketGraph::<H>::new_stacked(25, BASE_DEGREE, EXP_DEGREE, 0, new_seed());
         let exp_parents = get_all_expanded_parents(&g);
         for (_i, parents) in &exp_parents {
             assert!(parents.iter().all(|p| *p == 0));
@@ -574,13 +574,13 @@ mod tests {
     fn test_expansion<H: 'static + Hasher>() {
         // We need a graph.
         // start with an even layer, not 0 to make sure we have parents
-        let g = ZigZagBucketGraph::<H>::new_zigzag(25, BASE_DEGREE, EXP_DEGREE, 2, new_seed());
+        let g = StackedBucketGraph::<H>::new_stacked(25, BASE_DEGREE, EXP_DEGREE, 2, new_seed());
 
         // We're going to fully realize the expansion-graph component, in a HashMap.
         let gcache = get_all_expanded_parents(&g);
 
-        // Here's the zigzag version of the graph.
-        let gz = g.zigzag();
+        // Here's the stacked version of the graph.
+        let gz = g.stacked();
 
         // And a HashMap to hold the expanded parents.
         let gzcache = get_all_expanded_parents(&gz);
@@ -599,7 +599,7 @@ mod tests {
         }
 
         // And then do the same check to make sure all (expanded) node-parent relationships from the original
-        // are present in the zigzag, just reversed.
+        // are present in the stacked, just reversed.
         for i in 0..g.size() {
             let parents = gcache.get(&i).unwrap();
             for p in parents {
@@ -609,16 +609,16 @@ mod tests {
                 assert!(gzcache[&(*p as usize)].contains(&(i as u32)));
             }
         }
-        // Having checked both ways, we know the graph and its zigzag counterpart have 'expanded' components
+        // Having checked both ways, we know the graph and its stacked counterpart have 'expanded' components
         // which are each other's inverses. It's important that this be true.
     }
 
     fn get_all_expanded_parents<H: 'static + Hasher>(
-        zigzag_graph: &ZigZagBucketGraph<H>,
+        stacked_graph: &StackedBucketGraph<H>,
     ) -> HashMap<usize, Vec<u32>> {
         let mut parents_map: HashMap<usize, Vec<u32>> = HashMap::new();
-        for i in 0..zigzag_graph.size() {
-            parents_map.insert(i, zigzag_graph.expanded_parents(i, |p| p.clone()));
+        for i in 0..stacked_graph.size() {
+            parents_map.insert(i, stacked_graph.expanded_parents(i, |p| p.clone()));
         }
 
         parents_map

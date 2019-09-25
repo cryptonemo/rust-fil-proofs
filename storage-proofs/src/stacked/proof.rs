@@ -7,42 +7,42 @@ use crate::drgraph::Graph;
 use crate::error::Result;
 use crate::hasher::Hasher;
 use crate::merkle::{next_pow2, populate_leaves, MerkleProof, MerkleStore, Store};
-use crate::util::NODE_SIZE;
-use crate::vde;
-use crate::zigzag::{
+use crate::stacked::{
     challenges::LayerChallenges,
     column::Column,
     encoding_proof::EncodingProof,
-    graph::ZigZagBucketGraph,
+    graph::StackedBucketGraph,
     hash::hash2,
     params::{
         get_node, Encodings, PersistentAux, Proof, PublicInputs, ReplicaColumnProof, Tau,
         TemporaryAux, TransformedLayers, Tree,
     },
 };
+use crate::util::NODE_SIZE;
+use crate::vde;
 
 #[derive(Debug)]
-pub struct ZigZagDrgPoRep<'a, H: 'a + Hasher> {
+pub struct StackedDrg<'a, H: 'a + Hasher> {
     _a: PhantomData<&'a H>,
 }
 
-impl<'a, H: 'static + Hasher> ZigZagDrgPoRep<'a, H> {
+impl<'a, H: 'static + Hasher> StackedDrg<'a, H> {
     /// Transform a layer's public parameters, returning new public parameters corresponding to the next layer.
     /// Warning: This method will likely need to be extended for other implementations
     /// but because it is not clear what parameters they will need, only the ones needed
     /// for zizag are currently present (same applies to [invert_transform]).
-    pub(crate) fn transform(graph: &ZigZagBucketGraph<H>) -> ZigZagBucketGraph<H> {
-        graph.zigzag()
+    pub(crate) fn transform(graph: &StackedBucketGraph<H>) -> StackedBucketGraph<H> {
+        graph.stacked()
     }
 
     /// Transform a layer's public parameters, returning new public parameters corresponding to the previous layer.
-    pub(crate) fn invert_transform(graph: &ZigZagBucketGraph<H>) -> ZigZagBucketGraph<H> {
-        graph.zigzag_invert()
+    pub(crate) fn invert_transform(graph: &StackedBucketGraph<H>) -> StackedBucketGraph<H> {
+        graph.stacked_invert()
     }
 
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn prove_layers(
-        graph_0: &ZigZagBucketGraph<H>,
+        graph_0: &StackedBucketGraph<H>,
         pub_inputs: &PublicInputs<<H as Hasher>::Domain>,
         _p_aux: &PersistentAux<H::Domain>,
         t_aux: &TemporaryAux<H>,
@@ -107,7 +107,7 @@ impl<'a, H: 'static + Hasher> ZigZagDrgPoRep<'a, H> {
                 // Derive the set of challenges we are proving over.
                 let challenges = pub_inputs.challenges(layer_challenges, graph_size, Some(k));
 
-                // ZigZag commitment specifics
+                // Stacked commitment specifics
                 challenges
                     .into_par_iter()
                     .map(|challenge| {
@@ -120,7 +120,7 @@ impl<'a, H: 'static + Hasher> ZigZagDrgPoRep<'a, H> {
                         let comm_d_proof =
                             MerkleProof::new_from_proof(&t_aux.tree_d.gen_proof(challenge));
 
-                        // ZigZag replica column openings
+                        // Stacked replica column openings
                         let rpc = {
                             // All labels in C_X
                             trace!("  c_x");
@@ -276,7 +276,7 @@ impl<'a, H: 'static + Hasher> ZigZagDrgPoRep<'a, H> {
     }
 
     pub(crate) fn extract_and_invert_transform_layers(
-        graph: &ZigZagBucketGraph<H>,
+        graph: &StackedBucketGraph<H>,
         layer_challenges: &LayerChallenges,
         replica_id: &<H as Hasher>::Domain,
         data: &mut [u8],
@@ -289,7 +289,7 @@ impl<'a, H: 'static + Hasher> ZigZagDrgPoRep<'a, H> {
 
         let last_graph = (0..layers).try_fold(
             graph.clone(),
-            |current_graph, _layer| -> Result<ZigZagBucketGraph<H>> {
+            |current_graph, _layer| -> Result<StackedBucketGraph<H>> {
                 let inverted = Self::invert_transform(&current_graph);
                 let res = vde::decode(&inverted, replica_id, data)?;
 
@@ -305,7 +305,7 @@ impl<'a, H: 'static + Hasher> ZigZagDrgPoRep<'a, H> {
     }
 
     pub(crate) fn transform_and_replicate_layers(
-        graph: &ZigZagBucketGraph<H>,
+        graph: &StackedBucketGraph<H>,
         layer_challenges: &LayerChallenges,
         replica_id: &<H as Hasher>::Domain,
         data: &mut [u8],
@@ -461,9 +461,9 @@ mod tests {
     use crate::hasher::{Blake2sHasher, Domain, PedersenHasher, Sha256Hasher};
     use crate::porep::PoRep;
     use crate::proof::ProofScheme;
-    use crate::zigzag::{PrivateInputs, SetupParams, EXP_DEGREE};
+    use crate::stacked::{PrivateInputs, SetupParams, EXP_DEGREE};
 
-    const DEFAULT_ZIGZAG_LAYERS: usize = 4;
+    const DEFAULT_STACKED_LAYERS: usize = 4;
 
     #[test]
     fn test_calculate_fixed_challenges() {
@@ -500,7 +500,7 @@ mod tests {
                 v.as_ref().to_vec()
             })
             .collect();
-        let challenges = LayerChallenges::new_fixed(DEFAULT_ZIGZAG_LAYERS, 5);
+        let challenges = LayerChallenges::new_fixed(DEFAULT_STACKED_LAYERS, 5);
 
         // create a copy, so we can compare roundtrips
         let mut data_copy = data.clone();
@@ -515,27 +515,24 @@ mod tests {
             layer_challenges: challenges.clone(),
         };
 
-        let pp = ZigZagDrgPoRep::<H>::setup(&sp).expect("setup failed");
+        let pp = StackedDrg::<H>::setup(&sp).expect("setup failed");
 
-        ZigZagDrgPoRep::<H>::replicate(&pp, &replica_id, data_copy.as_mut_slice(), None)
+        StackedDrg::<H>::replicate(&pp, &replica_id, data_copy.as_mut_slice(), None)
             .expect("replication failed");
 
         assert_ne!(data, data_copy);
 
         let transformed_pp = pp.transform_to_last_layer();
 
-        let decoded_data = ZigZagDrgPoRep::<H>::extract_all(
-            &transformed_pp,
-            &replica_id,
-            data_copy.as_mut_slice(),
-        )
-        .expect("failed to extract data");
+        let decoded_data =
+            StackedDrg::<H>::extract_all(&transformed_pp, &replica_id, data_copy.as_mut_slice())
+                .expect("failed to extract data");
 
         assert_eq!(data, decoded_data);
     }
 
     fn prove_verify_fixed(n: usize) {
-        let challenges = LayerChallenges::new_fixed(DEFAULT_ZIGZAG_LAYERS, 5);
+        let challenges = LayerChallenges::new_fixed(DEFAULT_STACKED_LAYERS, 5);
 
         test_prove_verify::<PedersenHasher>(n, challenges.clone());
         test_prove_verify::<Sha256Hasher>(n, challenges.clone());
@@ -571,9 +568,9 @@ mod tests {
             layer_challenges: challenges.clone(),
         };
 
-        let pp = ZigZagDrgPoRep::<H>::setup(&sp).expect("setup failed");
+        let pp = StackedDrg::<H>::setup(&sp).expect("setup failed");
         let (tau, (p_aux, t_aux)) =
-            ZigZagDrgPoRep::<H>::replicate(&pp, &replica_id, data_copy.as_mut_slice(), None)
+            StackedDrg::<H>::replicate(&pp, &replica_id, data_copy.as_mut_slice(), None)
                 .expect("replication failed");
         assert_ne!(data, data_copy);
 
@@ -587,11 +584,11 @@ mod tests {
         let priv_inputs = PrivateInputs { p_aux, t_aux };
 
         let all_partition_proofs =
-            &ZigZagDrgPoRep::<H>::prove_all_partitions(&pp, &pub_inputs, &priv_inputs, partitions)
+            &StackedDrg::<H>::prove_all_partitions(&pp, &pub_inputs, &priv_inputs, partitions)
                 .expect("failed to generate partition proofs");
 
         let proofs_are_valid =
-            ZigZagDrgPoRep::<H>::verify_all_partitions(&pp, &pub_inputs, all_partition_proofs)
+            StackedDrg::<H>::verify_all_partitions(&pp, &pub_inputs, all_partition_proofs)
                 .expect("failed to verify partition proofs");
 
         assert!(proofs_are_valid);
@@ -623,7 +620,7 @@ mod tests {
 
         // When this fails, the call to setup should panic, but seems to actually hang (i.e. neither return nor panic) for some reason.
         // When working as designed, the call to setup returns without error.
-        let _pp = ZigZagDrgPoRep::<PedersenHasher>::setup(&sp).expect("setup failed");
+        let _pp = StackedDrg::<PedersenHasher>::setup(&sp).expect("setup failed");
     }
 
     #[test]
@@ -693,7 +690,7 @@ mod tests {
             make_nodes(5),
         ]);
 
-        let graph = ZigZagBucketGraph::<Blake2sHasher>::new_zigzag(
+        let graph = StackedBucketGraph::<Blake2sHasher>::new_stacked(
             nodes,
             BASE_DEGREE,
             EXP_DEGREE,

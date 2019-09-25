@@ -4,8 +4,8 @@ use serde::ser::Serialize;
 use crate::hasher::pedersen::PedersenDomain;
 use crate::hasher::Hasher;
 use crate::merkle::{IncludedNode, MerkleProof};
-use crate::zigzag::column::Column;
-use crate::zigzag::hash::hash2;
+use crate::stacked::column::Column;
+use crate::stacked::hash::hash2;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ColumnProof<H: Hasher> {

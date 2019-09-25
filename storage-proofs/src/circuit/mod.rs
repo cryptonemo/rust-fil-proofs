@@ -11,9 +11,9 @@ pub mod porc;
 pub mod ppor;
 pub mod rational_post;
 pub mod sloth;
+pub mod stacked;
 pub mod variables;
 pub mod xor;
-pub mod zigzag;
 
 // FIXME: Can we make a config like for test?
 pub mod bench;

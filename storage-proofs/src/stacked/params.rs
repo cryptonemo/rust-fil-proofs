@@ -9,11 +9,11 @@ use crate::error::Result;
 use crate::hasher::{Domain, Hasher};
 use crate::merkle::{MerkleProof, MerkleTree};
 use crate::parameter_cache::ParameterSetMetadata;
-use crate::util::data_at_node;
-use crate::zigzag::{
+use crate::stacked::{
     column::Column, column_proof::ColumnProof, encoding_proof::EncodingProof,
-    graph::ZigZagBucketGraph, hash::hash2, LayerChallenges,
+    graph::StackedBucketGraph, hash::hash2, LayerChallenges,
 };
+use crate::util::data_at_node;
 
 pub type Tree<H> = MerkleTree<<H as Hasher>::Domain, <H as Hasher>::Function>;
 
@@ -28,7 +28,7 @@ pub struct PublicParams<H>
 where
     H: 'static + Hasher,
 {
-    pub graph: ZigZagBucketGraph<H>,
+    pub graph: StackedBucketGraph<H>,
     pub layer_challenges: LayerChallenges,
     _h: PhantomData<H>,
 }
@@ -37,7 +37,7 @@ impl<H> PublicParams<H>
 where
     H: Hasher,
 {
-    pub fn new(graph: ZigZagBucketGraph<H>, layer_challenges: LayerChallenges) -> Self {
+    pub fn new(graph: StackedBucketGraph<H>, layer_challenges: LayerChallenges) -> Self {
         PublicParams {
             graph,
             layer_challenges,
@@ -56,7 +56,7 @@ where
         } = self;
 
         for _ in 0..layer_challenges.layers() {
-            graph = graph.zigzag();
+            graph = graph.stacked();
         }
 
         PublicParams {
@@ -179,8 +179,8 @@ impl<H: Hasher> Proof<H> {
         pub_params: &PublicParams<H>,
         pub_inputs: &PublicInputs<<H as Hasher>::Domain>,
         challenge: usize,
-        graph_0: &ZigZagBucketGraph<H>,
-        graph_1: &ZigZagBucketGraph<H>,
+        graph_0: &StackedBucketGraph<H>,
+        graph_1: &StackedBucketGraph<H>,
     ) -> bool {
         let replica_id = &pub_inputs.replica_id;
         let layers = pub_params.layer_challenges.layers();
@@ -248,7 +248,11 @@ impl<H: Hasher> Proof<H> {
     }
 
     /// Verify final replica layer openings
-    fn verify_final_replica_layer(&self, challenge: usize, graph_1: &ZigZagBucketGraph<H>) -> bool {
+    fn verify_final_replica_layer(
+        &self,
+        challenge: usize,
+        graph_1: &StackedBucketGraph<H>,
+    ) -> bool {
         trace!("verify final replica layer openings");
         let inv_challenge = graph_1.inv_index(challenge);
 
@@ -393,7 +397,7 @@ impl<H: Hasher> TemporaryAux<H> {
 
     pub fn full_column(
         &self,
-        graph: &ZigZagBucketGraph<H>,
+        graph: &StackedBucketGraph<H>,
         column_index: usize,
     ) -> Result<Column<H>> {
         self.encodings.full_column(graph, column_index)
@@ -465,7 +469,7 @@ impl<H: Hasher> Encodings<H> {
 
     pub fn full_column(
         &self,
-        graph: &ZigZagBucketGraph<H>,
+        graph: &StackedBucketGraph<H>,
         column_index: usize,
     ) -> Result<Column<H>> {
         let inv_index = graph.inv_index(column_index);

@@ -6,7 +6,7 @@ use paired::bls12_381::{Bls12, Fr};
 use crate::circuit::{constraint, kdf::kdf, sloth};
 use crate::drgraph::Graph;
 use crate::hasher::Hasher;
-use crate::zigzag::{EncodingProof as VanillaEncodingProof, PublicParams};
+use crate::stacked::{EncodingProof as VanillaEncodingProof, PublicParams};
 
 #[derive(Debug, Clone)]
 pub struct EncodingProof {

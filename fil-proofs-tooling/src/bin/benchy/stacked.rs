@@ -14,7 +14,7 @@ use rand::{Rng, SeedableRng, XorShiftRng};
 
 use fil_proofs_tooling::{measure, FuncMeasurement, Metadata};
 use storage_proofs::circuit::metric::MetricCS;
-use storage_proofs::circuit::zigzag::ZigZagCompound;
+use storage_proofs::circuit::stacked::StackedCompound;
 use storage_proofs::compound_proof::{self, CompoundProof};
 use storage_proofs::drgporep;
 use storage_proofs::drgraph::*;
@@ -22,8 +22,8 @@ use storage_proofs::hasher::{Blake2sHasher, Hasher, PedersenHasher, Sha256Hasher
 use storage_proofs::porep::PoRep;
 use storage_proofs::proof::ProofScheme;
 use storage_proofs::settings;
-use storage_proofs::zigzag::{
-    self, ChallengeRequirements, LayerChallenges, ZigZagDrgPoRep, EXP_DEGREE,
+use storage_proofs::stacked::{
+    self, ChallengeRequirements, LayerChallenges, StackedDrg, EXP_DEGREE,
 };
 
 fn file_backed_mmap_from_zeroes(n: usize, use_tmp: bool) -> Result<MmapMut, failure::Error> {
@@ -34,7 +34,7 @@ fn file_backed_mmap_from_zeroes(n: usize, use_tmp: bool) -> Result<MmapMut, fail
             .read(true)
             .write(true)
             .create(true)
-            .open(format!("./zigzag-data-{:?}", Utc::now()))
+            .open(format!("./stacked-data-{:?}", Utc::now()))
             .unwrap()
     };
 
@@ -46,7 +46,7 @@ fn file_backed_mmap_from_zeroes(n: usize, use_tmp: bool) -> Result<MmapMut, fail
 }
 
 fn dump_proof_bytes<H: Hasher>(
-    all_partition_proofs: &[Vec<zigzag::Proof<H>>],
+    all_partition_proofs: &[Vec<stacked::Proof<H>>],
 ) -> Result<(), failure::Error> {
     let file = OpenOptions::new()
         .write(true)
@@ -126,7 +126,7 @@ where
         let nodes = data_size / 32;
 
         let replica_id: H::Domain = rng.gen();
-        let sp = zigzag::SetupParams {
+        let sp = stacked::SetupParams {
             drg: drgporep::DrgParams {
                 nodes,
                 degree: BASE_DEGREE,
@@ -136,7 +136,7 @@ where
             layer_challenges: layer_challenges.clone(),
         };
 
-        let pp = ZigZagDrgPoRep::<H>::setup(&sp)?;
+        let pp = StackedDrg::<H>::setup(&sp)?;
 
         let (pub_in, priv_in, d) = if *bench_only {
             (None, None, None)
@@ -149,16 +149,16 @@ where
                 return_value: (pub_inputs, priv_inputs),
             } = measure(|| {
                 let (tau, (p_aux, t_aux)) =
-                    ZigZagDrgPoRep::<H>::replicate(&pp, &replica_id, &mut data, None)?;
+                    StackedDrg::<H>::replicate(&pp, &replica_id, &mut data, None)?;
 
-                let pb = zigzag::PublicInputs::<H::Domain> {
+                let pb = stacked::PublicInputs::<H::Domain> {
                     replica_id,
                     seed: None,
                     tau: Some(tau.clone()),
                     k: Some(0),
                 };
 
-                let pv = zigzag::PrivateInputs { p_aux, t_aux };
+                let pv = stacked::PrivateInputs { p_aux, t_aux };
 
                 Ok((pb, pv))
             })?;
@@ -192,13 +192,8 @@ where
                 wall_time: vanilla_proving_wall_time,
                 return_value: all_partition_proofs,
             } = measure(|| {
-                ZigZagDrgPoRep::<H>::prove_all_partitions(
-                    &pp,
-                    &pub_inputs,
-                    &priv_inputs,
-                    *partitions,
-                )
-                .map_err(|err| err.into())
+                StackedDrg::<H>::prove_all_partitions(&pp, &pub_inputs, &priv_inputs, *partitions)
+                    .map_err(|err| err.into())
             })?;
 
             report.outputs.vanilla_proving_wall_time_us =
@@ -221,7 +216,7 @@ where
 
             for _ in 0..*samples {
                 let m = measure(|| {
-                    let verified = ZigZagDrgPoRep::<H>::verify_all_partitions(
+                    let verified = StackedDrg::<H>::verify_all_partitions(
                         &pp,
                         &pub_inputs,
                         &all_partition_proofs,
@@ -269,8 +264,7 @@ where
             if *extract {
                 let pp = pp.transform_to_last_layer();
                 let m = measure(|| {
-                    ZigZagDrgPoRep::<H>::extract_all(&pp, &replica_id, &data)
-                        .map_err(|err| err.into())
+                    StackedDrg::<H>::extract_all(&pp, &replica_id, &data).map_err(|err| err.into())
                 })?;
 
                 assert_ne!(&(*data), m.return_value.as_slice());
@@ -300,9 +294,9 @@ struct CircuitWorkMeasurement {
 }
 
 fn do_circuit_work<H: 'static + Hasher>(
-    pp: &<ZigZagDrgPoRep<H> as ProofScheme>::PublicParams,
-    pub_in: Option<<ZigZagDrgPoRep<H> as ProofScheme>::PublicInputs>,
-    priv_in: Option<<ZigZagDrgPoRep<H> as ProofScheme>::PrivateInputs>,
+    pp: &<StackedDrg<H> as ProofScheme>::PublicParams,
+    pub_in: Option<<StackedDrg<H> as ProofScheme>::PublicInputs>,
+    priv_in: Option<<StackedDrg<H> as ProofScheme>::PrivateInputs>,
     params: &Params,
     report: &mut Report,
 ) -> Result<CircuitWorkMeasurement, failure::Error> {
@@ -331,7 +325,7 @@ fn do_circuit_work<H: 'static + Hasher>(
 
     if *bench || *circuit {
         let mut cs = MetricCS::<Bls12>::new();
-        ZigZagCompound::blank_circuit(&pp, &engine_params).synthesize(&mut cs)?;
+        StackedCompound::blank_circuit(&pp, &engine_params).synthesize(&mut cs)?;
 
         report.outputs.circuit_num_inputs = Some(cs.num_inputs() as u64);
         report.outputs.circuit_num_constraints = Some(cs.num_constraints() as u64);
@@ -348,7 +342,7 @@ fn do_circuit_work<H: 'static + Hasher>(
         // We should also allow the serialized vanilla proofs to be passed (as a file) to the example
         // and skip replication/vanilla-proving entirely.
         let gparams =
-            ZigZagCompound::groth_params(&compound_public_params.vanilla_params, &engine_params)?;
+            StackedCompound::groth_params(&compound_public_params.vanilla_params, &engine_params)?;
 
         let multi_proof = {
             let FuncMeasurement {
@@ -356,7 +350,7 @@ fn do_circuit_work<H: 'static + Hasher>(
                 cpu_time,
                 return_value,
             } = measure(|| {
-                ZigZagCompound::prove(&compound_public_params, &pub_inputs, &priv_inputs, &gparams)
+                StackedCompound::prove(&compound_public_params, &pub_inputs, &priv_inputs, &gparams)
                     .map_err(|err| err.into())
             })?;
             proving_wall_time += wall_time;
@@ -372,7 +366,7 @@ fn do_circuit_work<H: 'static + Hasher>(
             for _ in 0..*samples {
                 let cur_result = result;
                 let m = measure(|| {
-                    ZigZagCompound::verify(
+                    StackedCompound::verify(
                         &compound_public_params,
                         &pub_inputs,
                         &multi_proof,
@@ -494,7 +488,7 @@ pub fn run(opts: RunOpts) -> Result<(), failure::Error> {
         samples: 5,
     };
 
-    info!("Benchy ZigZag: {:?}", &params);
+    info!("Benchy Stacked: {:?}", &params);
 
     let report = match params.hasher.as_ref() {
         "pedersen" => generate_report::<PedersenHasher>(params)?,

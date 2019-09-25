@@ -3,7 +3,7 @@ use storage_proofs::drgraph::{DefaultTreeHasher, BASE_DEGREE};
 use storage_proofs::hasher::PedersenHasher;
 use storage_proofs::proof::ProofScheme;
 use storage_proofs::rational_post::{self, RationalPoSt};
-use storage_proofs::zigzag::{self, LayerChallenges, ZigZagDrgPoRep, EXP_DEGREE};
+use storage_proofs::stacked::{self, LayerChallenges, StackedDrg, EXP_DEGREE};
 
 use crate::constants::POREP_MINIMUM_CHALLENGES;
 use crate::types::{PaddedBytesAmount, PoStConfig};
@@ -20,14 +20,14 @@ pub type PostPublicParams = rational_post::PublicParams;
 pub fn public_params(
     sector_bytes: PaddedBytesAmount,
     partitions: usize,
-) -> zigzag::PublicParams<DefaultTreeHasher> {
-    ZigZagDrgPoRep::<DefaultTreeHasher>::setup(&setup_params(sector_bytes, partitions)).unwrap()
+) -> stacked::PublicParams<DefaultTreeHasher> {
+    StackedDrg::<DefaultTreeHasher>::setup(&setup_params(sector_bytes, partitions)).unwrap()
 }
 
 pub fn public_params_for_extraction(
     sector_bytes: PaddedBytesAmount,
     partitions: usize,
-) -> zigzag::PublicParams<DefaultTreeHasher> {
+) -> stacked::PublicParams<DefaultTreeHasher> {
     let base_params = public_params(sector_bytes, partitions);
     base_params.transform_to_last_layer()
 }
@@ -45,7 +45,7 @@ pub fn post_setup_params(post_config: PoStConfig) -> PostSetupParams {
     }
 }
 
-pub fn setup_params(sector_bytes: PaddedBytesAmount, partitions: usize) -> zigzag::SetupParams {
+pub fn setup_params(sector_bytes: PaddedBytesAmount, partitions: usize) -> stacked::SetupParams {
     let sector_bytes = usize::from(sector_bytes);
 
     let challenges = select_challenges(partitions, POREP_MINIMUM_CHALLENGES, LAYERS);
@@ -56,7 +56,7 @@ pub fn setup_params(sector_bytes: PaddedBytesAmount, partitions: usize) -> zigza
         sector_bytes,
     );
     let nodes = sector_bytes / 32;
-    zigzag::SetupParams {
+    stacked::SetupParams {
         drg: DrgParams {
             nodes,
             degree: BASE_DEGREE,

@@ -3,9 +3,9 @@ use fil_sapling_crypto::circuit::{boolean::Boolean, num};
 use fil_sapling_crypto::jubjub::JubjubEngine;
 use paired::bls12_381::{Bls12, Fr};
 
-use crate::circuit::zigzag::hash::{hash1, hash2, hash_single_column};
+use crate::circuit::stacked::hash::{hash1, hash2, hash_single_column};
 use crate::hasher::Hasher;
-use crate::zigzag::{Column as VanillaColumn, PublicParams, RawColumn as VanillaRawColumn};
+use crate::stacked::{Column as VanillaColumn, PublicParams, RawColumn as VanillaRawColumn};
 
 #[derive(Debug, Clone)]
 pub enum Column {

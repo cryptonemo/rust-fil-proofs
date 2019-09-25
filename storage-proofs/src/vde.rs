@@ -19,8 +19,6 @@ where
     // Therefore, if we simply traverse the data in order, encoding each node in place,
     // we can always get each parent's encodings with a simple lookup --
     // since we will already have encoded the parent earlier in the traversal.
-    // The only subtlety is that a ZigZag graph may be reversed, so the direction
-    // of the traversal must also be.
 
     let mut parents = vec![0; graph.degree()];
     for n in 0..graph.size() {

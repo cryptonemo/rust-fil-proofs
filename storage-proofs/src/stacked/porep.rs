@@ -1,12 +1,12 @@
 use crate::error::Result;
 use crate::hasher::Hasher;
 use crate::porep::PoRep;
-use crate::zigzag::{
+use crate::stacked::{
     params::{PersistentAux, PublicParams, Tau, TemporaryAux, Tree},
-    proof::ZigZagDrgPoRep,
+    proof::StackedDrg,
 };
 
-impl<'a, 'c, H: 'static + Hasher> PoRep<'a, H> for ZigZagDrgPoRep<'a, H> {
+impl<'a, 'c, H: 'static + Hasher> PoRep<'a, H> for StackedDrg<'a, H> {
     type Tau = Tau<<H as Hasher>::Domain>;
     type ProverAux = (PersistentAux<H::Domain>, TemporaryAux<H>);
 

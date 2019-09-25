@@ -7,8 +7,8 @@ use paired::bls12_381::{Bls12, Fr};
 
 use crate::circuit::constraint;
 use crate::circuit::por::{PoRCircuit, PoRCompound};
+use crate::circuit::stacked::hash::hash2;
 use crate::circuit::variables::Root;
-use crate::circuit::zigzag::hash::hash2;
 use crate::compound_proof::{CircuitComponent, CompoundProof};
 use crate::drgraph;
 use crate::hasher::Hasher;
@@ -285,7 +285,7 @@ mod tests {
     use crate::proof::{NoRequirements, ProofScheme};
     use crate::rational_post::{self, derive_challenges, RationalPoSt};
     use crate::sector::OrderedSectorSet;
-    use crate::zigzag::hash::hash2;
+    use crate::stacked::hash::hash2;
 
     #[test]
     fn test_rational_post_circuit_with_bls12_381() {

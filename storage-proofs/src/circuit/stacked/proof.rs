@@ -8,7 +8,7 @@ use paired::bls12_381::{Bls12, Fr};
 use crate::circuit::por::PoRCompound;
 use crate::circuit::{
     constraint,
-    zigzag::{hash::hash2, params::Proof},
+    stacked::{hash::hash2, params::Proof},
 };
 use crate::compound_proof::{CircuitComponent, CompoundProof};
 use crate::drgraph::{Graph, BASE_DEGREE};
@@ -16,17 +16,17 @@ use crate::hasher::Hasher;
 use crate::merklepor;
 use crate::parameter_cache::{CacheableParameters, ParameterSetMetadata};
 use crate::proof::ProofScheme;
-use crate::zigzag::{ZigZagDrgPoRep, EXP_DEGREE};
+use crate::stacked::{StackedDrg, EXP_DEGREE};
 
-/// ZigZag DRG based Proof of Replication.
+/// Stacked DRG based Proof of Replication.
 ///
 /// # Fields
 ///
 /// * `params` - parameters for the curve
 ///
-pub struct ZigZagCircuit<'a, E: JubjubEngine, H: 'static + Hasher> {
+pub struct StackedCircuit<'a, E: JubjubEngine, H: 'static + Hasher> {
     params: &'a E::Params,
-    public_params: <ZigZagDrgPoRep<'a, H> as ProofScheme<'a>>::PublicParams,
+    public_params: <StackedDrg<'a, H> as ProofScheme<'a>>::PublicParams,
     replica_id: Option<H::Domain>,
     comm_d: Option<H::Domain>,
     comm_r: Option<H::Domain>,
@@ -39,16 +39,16 @@ pub struct ZigZagCircuit<'a, E: JubjubEngine, H: 'static + Hasher> {
     _e: PhantomData<E>,
 }
 
-impl<'a, E: JubjubEngine, H: Hasher> CircuitComponent for ZigZagCircuit<'a, E, H> {
+impl<'a, E: JubjubEngine, H: Hasher> CircuitComponent for StackedCircuit<'a, E, H> {
     type ComponentPrivateInputs = ();
 }
 
-impl<'a, H: Hasher> ZigZagCircuit<'a, Bls12, H> {
+impl<'a, H: Hasher> StackedCircuit<'a, Bls12, H> {
     #[allow(clippy::too_many_arguments)]
     pub fn synthesize<CS>(
         mut cs: CS,
         params: &'a <Bls12 as JubjubEngine>::Params,
-        public_params: <ZigZagDrgPoRep<'a, H> as ProofScheme<'a>>::PublicParams,
+        public_params: <StackedDrg<'a, H> as ProofScheme<'a>>::PublicParams,
         replica_id: Option<H::Domain>,
         comm_d: Option<H::Domain>,
         comm_r: Option<H::Domain>,
@@ -59,7 +59,7 @@ impl<'a, H: Hasher> ZigZagCircuit<'a, Bls12, H> {
     where
         CS: ConstraintSystem<Bls12>,
     {
-        let circuit = ZigZagCircuit::<'a, Bls12, H> {
+        let circuit = StackedCircuit::<'a, Bls12, H> {
             params,
             public_params,
             replica_id,
@@ -75,9 +75,9 @@ impl<'a, H: Hasher> ZigZagCircuit<'a, Bls12, H> {
     }
 }
 
-impl<'a, H: Hasher> Circuit<Bls12> for ZigZagCircuit<'a, Bls12, H> {
+impl<'a, H: Hasher> Circuit<Bls12> for StackedCircuit<'a, Bls12, H> {
     fn synthesize<CS: ConstraintSystem<Bls12>>(self, cs: &mut CS) -> Result<(), SynthesisError> {
-        let ZigZagCircuit {
+        let StackedCircuit {
             public_params,
             proofs,
             replica_id,
@@ -186,30 +186,29 @@ impl<'a, H: Hasher> Circuit<Bls12> for ZigZagCircuit<'a, Bls12, H> {
 }
 
 #[allow(dead_code)]
-pub struct ZigZagCompound {
+pub struct StackedCompound {
     partitions: Option<usize>,
 }
 
 impl<E: JubjubEngine, C: Circuit<E>, P: ParameterSetMetadata> CacheableParameters<E, C, P>
-    for ZigZagCompound
+    for StackedCompound
 {
     fn cache_prefix() -> String {
-        String::from("zigzag-proof-of-replication")
+        String::from("stacked-proof-of-replication")
     }
 }
 
 impl<'a, H: 'static + Hasher>
-    CompoundProof<'a, Bls12, ZigZagDrgPoRep<'a, H>, ZigZagCircuit<'a, Bls12, H>>
-    for ZigZagCompound
+    CompoundProof<'a, Bls12, StackedDrg<'a, H>, StackedCircuit<'a, Bls12, H>> for StackedCompound
 {
     fn generate_public_inputs(
-        pub_in: &<ZigZagDrgPoRep<H> as ProofScheme>::PublicInputs,
-        pub_params: &<ZigZagDrgPoRep<H> as ProofScheme>::PublicParams,
+        pub_in: &<StackedDrg<H> as ProofScheme>::PublicInputs,
+        pub_params: &<StackedDrg<H> as ProofScheme>::PublicParams,
         k: Option<usize>,
     ) -> Vec<Fr> {
         let graph_0 = &pub_params.graph;
-        let graph_1 = ZigZagDrgPoRep::transform(graph_0);
-        let graph_2 = ZigZagDrgPoRep::transform(&graph_1);
+        let graph_1 = StackedDrg::transform(graph_0);
+        let graph_2 = StackedDrg::transform(&graph_1);
 
         let mut inputs = Vec::new();
 
@@ -287,12 +286,12 @@ impl<'a, H: 'static + Hasher>
     }
 
     fn circuit<'b>(
-        public_inputs: &'b <ZigZagDrgPoRep<H> as ProofScheme>::PublicInputs,
-        _component_private_inputs: <ZigZagCircuit<'a, Bls12, H> as CircuitComponent>::ComponentPrivateInputs,
-        vanilla_proof: &'b <ZigZagDrgPoRep<H> as ProofScheme>::Proof,
-        public_params: &'b <ZigZagDrgPoRep<H> as ProofScheme>::PublicParams,
+        public_inputs: &'b <StackedDrg<H> as ProofScheme>::PublicInputs,
+        _component_private_inputs: <StackedCircuit<'a, Bls12, H> as CircuitComponent>::ComponentPrivateInputs,
+        vanilla_proof: &'b <StackedDrg<H> as ProofScheme>::Proof,
+        public_params: &'b <StackedDrg<H> as ProofScheme>::PublicParams,
         engine_params: &'a <Bls12 as JubjubEngine>::Params,
-    ) -> ZigZagCircuit<'a, Bls12, H> {
+    ) -> StackedCircuit<'a, Bls12, H> {
         assert!(
             !vanilla_proof.is_empty(),
             "Cannot create a circuit with no vanilla proofs"
@@ -307,7 +306,7 @@ impl<'a, H: 'static + Hasher>
             .all(|p| p.comm_r_last() == &comm_r_last));
         assert!(vanilla_proof.iter().all(|p| p.comm_c() == &comm_c));
 
-        ZigZagCircuit {
+        StackedCircuit {
             params: engine_params,
             public_params: public_params.clone(),
             replica_id: Some(public_inputs.replica_id),
@@ -321,10 +320,10 @@ impl<'a, H: 'static + Hasher>
     }
 
     fn blank_circuit(
-        public_params: &<ZigZagDrgPoRep<H> as ProofScheme>::PublicParams,
+        public_params: &<StackedDrg<H> as ProofScheme>::PublicParams,
         params: &'a <Bls12 as JubjubEngine>::Params,
-    ) -> ZigZagCircuit<'a, Bls12, H> {
-        ZigZagCircuit {
+    ) -> StackedCircuit<'a, Bls12, H> {
+        StackedCircuit {
             params,
             public_params: public_params.clone(),
             replica_id: None,
@@ -354,7 +353,7 @@ mod tests {
     use crate::porep::PoRep;
     use crate::proof::ProofScheme;
     use crate::settings;
-    use crate::zigzag::{
+    use crate::stacked::{
         ChallengeRequirements, LayerChallenges, PrivateInputs, PublicInputs, SetupParams,
         EXP_DEGREE,
     };
@@ -364,7 +363,7 @@ mod tests {
     use rand::{Rng, SeedableRng, XorShiftRng};
 
     #[test]
-    fn zigzag_input_circuit_with_bls12_381() {
+    fn stacked_input_circuit_with_bls12_381() {
         let window_size = settings::SETTINGS
             .lock()
             .unwrap()
@@ -394,9 +393,9 @@ mod tests {
             layer_challenges: layer_challenges.clone(),
         };
 
-        let pp = ZigZagDrgPoRep::setup(&sp).expect("setup failed");
+        let pp = StackedDrg::setup(&sp).expect("setup failed");
         let (tau, (p_aux, t_aux)) =
-            ZigZagDrgPoRep::replicate(&pp, &replica_id.into(), data_copy.as_mut_slice(), None)
+            StackedDrg::replicate(&pp, &replica_id.into(), data_copy.as_mut_slice(), None)
                 .expect("replication failed");
         assert_ne!(data, data_copy);
 
@@ -412,29 +411,29 @@ mod tests {
             t_aux: t_aux.into(),
         };
 
-        let proofs = ZigZagDrgPoRep::prove_all_partitions(&pp, &pub_inputs, &priv_inputs, 1)
+        let proofs = StackedDrg::prove_all_partitions(&pp, &pub_inputs, &priv_inputs, 1)
             .expect("failed to generate partition proofs");
 
-        let proofs_are_valid = ZigZagDrgPoRep::verify_all_partitions(&pp, &pub_inputs, &proofs)
+        let proofs_are_valid = StackedDrg::verify_all_partitions(&pp, &pub_inputs, &proofs)
             .expect("failed to verify partition proofs");
 
         assert!(proofs_are_valid);
 
-        let expected_inputs = 67; // was 39 with "old" zigzag all pedersen
-        let expected_constraints = 599_035; // was 432_312 with "old" zigzag all pedersen
+        let expected_inputs = 67; // was 39 with "old" stacked all pedersen
+        let expected_constraints = 599_035; // was 432_312 with "old" stacked all pedersen
 
         {
             // Verify that MetricCS returns the same metrics as TestConstraintSystem.
             let mut cs = MetricCS::<Bls12>::new();
 
-            ZigZagCompound::circuit(
+            StackedCompound::circuit(
             &pub_inputs,
-            <ZigZagCircuit<Bls12, PedersenHasher> as CircuitComponent>::ComponentPrivateInputs::default(),
+            <StackedCircuit<Bls12, PedersenHasher> as CircuitComponent>::ComponentPrivateInputs::default(),
             &proofs[0],
             &pp,
             params,
         )
-            .synthesize(&mut cs.namespace(|| "zigzag drgporep"))
+            .synthesize(&mut cs.namespace(|| "stacked drgporep"))
             .expect("failed to synthesize circuit");
 
             assert_eq!(cs.num_inputs(), expected_inputs, "wrong number of inputs");
@@ -446,14 +445,14 @@ mod tests {
         }
         let mut cs = TestConstraintSystem::<Bls12>::new();
 
-        ZigZagCompound::circuit(
+        StackedCompound::circuit(
             &pub_inputs,
-            <ZigZagCircuit<Bls12, PedersenHasher> as CircuitComponent>::ComponentPrivateInputs::default(),
+            <StackedCircuit<Bls12, PedersenHasher> as CircuitComponent>::ComponentPrivateInputs::default(),
             &proofs[0],
             &pp,
             params,
         )
-        .synthesize(&mut cs.namespace(|| "zigzag drgporep"))
+        .synthesize(&mut cs.namespace(|| "stacked drgporep"))
         .expect("failed to synthesize circuit");
 
         assert!(cs.is_satisfied(), "constraints not satisfied");
@@ -466,7 +465,7 @@ mod tests {
 
         assert_eq!(cs.get_input(0, "ONE"), Fr::one());
 
-        let generated_inputs = ZigZagCompound::generate_public_inputs(&pub_inputs, &pp, None);
+        let generated_inputs = StackedCompound::generate_public_inputs(&pub_inputs, &pp, None);
         let expected_inputs = cs.get_inputs();
 
         for ((input, label), generated_input) in
@@ -484,17 +483,17 @@ mod tests {
 
     #[test]
     #[ignore] // Slow test – run only when compiled for release.
-    fn test_zigzag_compound_pedersen() {
-        zigzag_test_compound::<PedersenHasher>();
+    fn test_stacked_compound_pedersen() {
+        stacked_test_compound::<PedersenHasher>();
     }
 
     #[test]
     #[ignore] // Slow test – run only when compiled for release.
-    fn test_zigzag_compound_blake2s() {
-        zigzag_test_compound::<Blake2sHasher>();
+    fn test_stacked_compound_blake2s() {
+        stacked_test_compound::<Blake2sHasher>();
     }
 
-    fn zigzag_test_compound<H: 'static + Hasher>() {
+    fn stacked_test_compound<H: 'static + Hasher>() {
         let window_size = settings::SETTINGS
             .lock()
             .unwrap()
@@ -530,8 +529,8 @@ mod tests {
             partitions: Some(partition_count),
         };
 
-        let public_params = ZigZagCompound::setup(&setup_params).expect("setup failed");
-        let (tau, (p_aux, t_aux)) = ZigZagDrgPoRep::replicate(
+        let public_params = StackedCompound::setup(&setup_params).expect("setup failed");
+        let (tau, (p_aux, t_aux)) = StackedDrg::replicate(
             &public_params.vanilla_params,
             &replica_id.into(),
             data_copy.as_mut_slice(),
@@ -551,7 +550,7 @@ mod tests {
 
         {
             let (circuit, inputs) =
-                ZigZagCompound::circuit_for_test(&public_params, &public_inputs, &private_inputs);
+                StackedCompound::circuit_for_test(&public_params, &public_inputs, &private_inputs);
 
             let mut cs = TestConstraintSystem::new();
 
@@ -572,9 +571,9 @@ mod tests {
         // Use this to debug differences between blank and regular circuit generation.
         // {
         //     let (circuit1, _inputs) =
-        //         ZigZagCompound::circuit_for_test(&public_params, &public_inputs, &private_inputs);
+        //         StackedCompound::circuit_for_test(&public_params, &public_inputs, &private_inputs);
         //     let blank_circuit =
-        //         ZigZagCompound::blank_circuit(&public_params.vanilla_params, params);
+        //         StackedCompound::blank_circuit(&public_params.vanilla_params, params);
 
         //     let mut cs_blank = TestConstraintSystem::new();
         //     blank_circuit
@@ -593,10 +592,10 @@ mod tests {
         // }
 
         let blank_groth_params =
-            ZigZagCompound::groth_params(&public_params.vanilla_params, params)
+            StackedCompound::groth_params(&public_params.vanilla_params, params)
                 .expect("failed to generate groth params");
 
-        let proof = ZigZagCompound::prove(
+        let proof = StackedCompound::prove(
             &public_params,
             &public_inputs,
             &private_inputs,
@@ -604,7 +603,7 @@ mod tests {
         )
         .expect("failed while proving");
 
-        let verified = ZigZagCompound::verify(
+        let verified = StackedCompound::verify(
             &public_params,
             &public_inputs,
             &proof,

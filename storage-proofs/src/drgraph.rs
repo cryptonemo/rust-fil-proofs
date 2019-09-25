@@ -146,7 +146,7 @@ impl<H: Hasher> Graph<H> for BucketGraph<H> {
             // references, the second node only references the first node.
             0 | 1 => {
                 // Use the degree of the current graph (`m`) as `parents.len()` might be bigger than
-                // that (that's the case for ZigZag Graph).
+                // that (that's the case for Stacked Graph).
                 for parent in parents.iter_mut().take(m) {
                     *parent = 0;
                 }
@@ -184,7 +184,7 @@ impl<H: Hasher> Graph<H> for BucketGraph<H> {
                 parents[m_prime] = node - 1;
 
                 // Use the degree of the current graph (`m`) as `parents.len()` might be bigger than
-                // that (that's the case for ZigZag Graph).
+                // that (that's the case for Stacked Graph).
                 parents[0..m].sort_unstable();
             }
         }

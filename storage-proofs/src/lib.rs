@@ -44,7 +44,7 @@ pub mod proof;
 pub mod rational_post;
 pub mod sector;
 pub mod settings;
+pub mod stacked;
 pub mod util;
-pub mod zigzag;
 
 pub mod vde;

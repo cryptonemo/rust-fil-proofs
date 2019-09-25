@@ -6,9 +6,9 @@ use serde::ser::Serialize;
 use crate::hasher::pedersen::PedersenDomain;
 use crate::hasher::Hasher;
 use crate::merkle::MerkleProof;
-use crate::zigzag::{
+use crate::stacked::{
     column_proof::ColumnProof,
-    graph::ZigZagBucketGraph,
+    graph::StackedBucketGraph,
     hash::{hash1, hash2, hash_single_column},
     params::Tree,
 };
@@ -196,7 +196,7 @@ impl<H: Hasher> Column<H> {
     pub fn into_proof_even(
         self,
         tree_c: &Tree<H>,
-        graph: &ZigZagBucketGraph<H>,
+        graph: &StackedBucketGraph<H>,
         o_i: H::Domain,
     ) -> ColumnProof<H> {
         assert!(self.is_even());

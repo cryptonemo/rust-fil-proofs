@@ -5,4 +5,4 @@ pub(crate) mod hash;
 mod params;
 mod proof;
 
-pub use proof::{ZigZagCircuit, ZigZagCompound};
+pub use proof::{StackedCircuit, StackedCompound};

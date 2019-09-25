@@ -12,8 +12,8 @@ use crate::merkle::{MerkleProof, MerkleTree};
 use crate::parameter_cache::ParameterSetMetadata;
 use crate::proof::{NoRequirements, ProofScheme};
 use crate::sector::*;
+use crate::stacked::hash::hash2;
 use crate::util::NODE_SIZE;
-use crate::zigzag::hash::hash2;
 
 #[derive(Debug, Clone)]
 pub struct SetupParams {

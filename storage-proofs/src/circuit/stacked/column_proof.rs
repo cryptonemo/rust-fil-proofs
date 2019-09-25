@@ -5,10 +5,10 @@ use paired::bls12_381::{Bls12, Fr};
 
 use crate::circuit::{
     constraint,
-    zigzag::{column::Column, hash::hash2, params::InclusionPath},
+    stacked::{column::Column, hash::hash2, params::InclusionPath},
 };
 use crate::hasher::Hasher;
-use crate::zigzag::{ColumnProof as VanillaColumnProof, PublicParams};
+use crate::stacked::{ColumnProof as VanillaColumnProof, PublicParams};
 
 #[derive(Debug, Clone)]
 pub enum ColumnProof<H: Hasher> {
