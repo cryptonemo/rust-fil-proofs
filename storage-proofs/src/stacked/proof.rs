@@ -291,9 +291,12 @@ impl<'a, H: 'static + Hasher> StackedDrg<'a, H> {
             graph.clone(),
             |current_graph, _layer| -> Result<StackedBucketGraph<H>> {
                 let inverted = Self::invert_transform(&current_graph);
-                let res = vde::decode(&inverted, replica_id, data)?;
+                // TODO:
+                // replica = stacked-pos + data
+                // => data = replica - stacked-pos
+                // let res = vde::decode(&inverted, replica_id, data)?;
 
-                data.copy_from_slice(&res);
+                // data.copy_from_slice(&res);
 
                 Ok(inverted)
             },
@@ -356,11 +359,18 @@ impl<'a, H: 'static + Hasher> StackedDrg<'a, H> {
             trace!("encode layers");
             let mut encodings: Vec<Vec<u8>> = Vec::with_capacity(layers - 1);
             let mut current_graph = graph.clone();
-            let mut to_encode = data.to_vec();
+
+            // we do a Proof of Space, not of here, so we encode 0s.
+            let mut to_encode = vec![0; data.len()];
 
             for layer in 0..layers {
                 trace!("encoding (layer: {})", layer);
-                vde::encode(&current_graph, replica_id, &mut to_encode)?;
+                let exp_parents_data = if layer == 0 {
+                    None
+                } else {
+                    Some(&encodings[layer - 1][..])
+                };
+                vde::encode(&current_graph, replica_id, &mut to_encode, exp_parents_data)?;
                 current_graph = Self::transform(&current_graph);
 
                 assert_eq!(to_encode.len(), NODE_SIZE * nodes_count);
@@ -379,6 +389,8 @@ impl<'a, H: 'static + Hasher> StackedDrg<'a, H> {
 
             // Construct final replica commitment
             let tree_r_last_handle = s.spawn(move |_| build_tree(&r_last));
+
+            // TODO: what happens with even and odd here?
 
             // 3. Construct Column Commitments
             let odd_columns = (0..nodes_count)
@@ -417,6 +429,9 @@ impl<'a, H: 'static + Hasher> StackedDrg<'a, H> {
 
             // comm_r = H(comm_c || comm_r_last)
             let comm_r: H::Domain = Fr::from(hash2(tree_c.root(), tree_r_last.root())).into();
+
+            // TODO: encode data: data(tree_r_last) + data(tree_d) = replica?
+            // TODO: what is comm_r now?
 
             let tree_d = tree_d_handle.join()??;
 

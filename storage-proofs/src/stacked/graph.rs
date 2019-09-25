@@ -2,11 +2,16 @@ use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::{Arc, RwLock};
 
+use blake2s_simd::Params as Blake2s;
+
 use crate::crypto::feistel::{self, FeistelPrecomputed};
 use crate::drgraph::{BucketGraph, Graph, BASE_DEGREE};
+use crate::error::Result;
+use crate::fr32::bytes_into_fr_repr_safe;
 use crate::hasher::Hasher;
 use crate::parameter_cache::ParameterSetMetadata;
 use crate::settings;
+use crate::util::{data_at_node_offset, NODE_SIZE};
 
 /// The expansion degree used for Stacked Graphs.
 pub const EXP_DEGREE: usize = 8;
@@ -20,11 +25,9 @@ lazy_static! {
 }
 
 // StackedGraph will hold two different (but related) `ParentCache`,
-// the first one for the `forward` direction and the second one for the `reversed`.
 #[derive(Debug, Clone)]
 struct ParentCache {
-    forward: Vec<Option<Vec<u32>>>,
-    reverse: Vec<Option<Vec<u32>>>,
+    cache: Vec<Option<Vec<u32>>>,
     // Keep the size of the cache outside the lock to be easily accessible.
     cache_entries: u32,
 }
@@ -32,52 +35,28 @@ struct ParentCache {
 impl ParentCache {
     pub fn new(cache_entries: u32) -> Self {
         ParentCache {
-            forward: vec![None; cache_entries as usize],
-            reverse: vec![None; cache_entries as usize],
+            cache: vec![None; cache_entries as usize],
             cache_entries,
         }
     }
 
-    pub fn contains_forward(&self, node: u32) -> bool {
+    pub fn contains(&self, node: u32) -> bool {
         assert!(node < self.cache_entries);
-        self.forward[node as usize].is_some()
+        self.cache[node as usize].is_some()
     }
 
-    pub fn contains_reverse(&self, node: u32) -> bool {
-        assert!(node < self.cache_entries);
-        self.reverse[node as usize].is_some()
-    }
-
-    pub fn read_forward<F, T>(&self, node: u32, mut cb: F) -> T
+    pub fn read<F, T>(&self, node: u32, mut cb: F) -> T
     where
         F: FnMut(Option<&Vec<u32>>) -> T,
     {
         assert!(node < self.cache_entries);
-        cb(self.forward[node as usize].as_ref())
+        cb(self.cache[node as usize].as_ref())
     }
 
-    pub fn read_reverse<F, T>(&self, node: u32, mut cb: F) -> T
-    where
-        F: FnMut(Option<&Vec<u32>>) -> T,
-    {
-        assert!(node < self.cache_entries);
-        cb(self.reverse[node as usize].as_ref())
-    }
-
-    pub fn write_forward(&mut self, node: u32, parents: Vec<u32>) {
+    pub fn write(&mut self, node: u32, parents: Vec<u32>) {
         assert!(node < self.cache_entries);
 
-        let old_value = std::mem::replace(&mut self.forward[node as usize], Some(parents));
-
-        debug_assert_eq!(old_value, None);
-        // We shouldn't be rewriting entries (with most likely the same values),
-        // this would be a clear indication of a bug.
-    }
-
-    pub fn write_reverse(&mut self, node: u32, parents: Vec<u32>) {
-        assert!(node < self.cache_entries);
-
-        let old_value = std::mem::replace(&mut self.reverse[node as usize], Some(parents));
+        let old_value = std::mem::replace(&mut self.cache[node as usize], Some(parents));
 
         debug_assert_eq!(old_value, None);
         // We shouldn't be rewriting entries (with most likely the same values),
@@ -93,7 +72,6 @@ where
 {
     expansion_degree: usize,
     base_graph: G,
-    pub reversed: bool,
     feistel_precomputed: FeistelPrecomputed,
     id: String,
     use_cache: bool,
@@ -137,7 +115,6 @@ where
             ),
             expansion_degree,
             use_cache,
-            reversed: false,
             layer,
             feistel_precomputed: feistel::precompute((expansion_degree * nodes) as feistel::Index),
             _h: PhantomData,
@@ -188,10 +165,6 @@ where
 
     #[inline]
     fn parents(&self, raw_node: usize, parents: &mut [usize]) {
-        // If graph is reversed, use real_index to convert index to reversed index.
-        // So we convert a raw reversed node to an unreversed node, calculate its parents,
-        // then convert the parents to reversed.
-
         self.base_parents(raw_node, &mut parents[..self.base_graph().degree()]);
 
         // expanded_parents takes raw_node
@@ -212,8 +185,35 @@ where
         Self::new_stacked(nodes, base_degree, expansion_degree, 0, seed)
     }
 
-    fn forward(&self) -> bool {
-        !self.reversed()
+    fn create_key(
+        &self,
+        id: &H::Domain,
+        node: usize,
+        parents: &[usize],
+        base_parents_data: &[u8],
+        exp_parents_data: Option<&[u8]>,
+    ) -> Result<H::Domain> {
+        let mut hasher = Blake2s::new().hash_length(NODE_SIZE).to_state();
+        hasher.update(id.as_ref());
+
+        let base_parents_count = self.base_graph().degree();
+
+        // The hash is about the parents, hence skip if a node doesn't have any parents
+        for (i, parent) in parents.iter().enumerate() {
+            let offset = data_at_node_offset(*parent);
+
+            if i < base_parents_count {
+                // Base parents
+                hasher.update(&base_parents_data[offset..offset + NODE_SIZE]);
+            } else {
+                let exp_parents_data = exp_parents_data.expect("create_key must be called with expander parents for all layers except the first");
+                // Expander parents
+                hasher.update(&exp_parents_data[offset..offset + NODE_SIZE]);
+            }
+        }
+
+        let hash = hasher.finalize();
+        Ok(bytes_into_fr_repr_safe(hash.as_ref()).into())
     }
 }
 
@@ -290,11 +290,7 @@ where
     fn contains_parents_cache(&self, node: usize) -> bool {
         if self.use_cache {
             if let Some(ref cache) = PARENT_CACHE.read().unwrap().get(&self.id) {
-                if self.forward() {
-                    cache.contains_forward(node as u32)
-                } else {
-                    cache.contains_reverse(node as u32)
-                }
+                cache.contains(node as u32)
             } else {
                 false
             }
@@ -308,27 +304,14 @@ where
         // Generate half of the parents from one permutation order and the other with its inverse.
         for &invert_permutation_order in &[false, true] {
             for i in 0..self.expansion_degree {
-                let other = self.correspondent(node, i, self.reversed ^ invert_permutation_order);
-                if self.reversed {
-                    if other > node {
-                        expanded_parents.push(other as u32);
-                    }
-                } else if other < node {
-                    expanded_parents.push(other as u32);
-                }
+                let other = self.correspondent(node, i, invert_permutation_order);
+                expanded_parents.push(other as u32);
             }
         }
 
         // Add padding parents.
-        let pad_parent = if self.reversed() { self.size() - 1 } else { 0 } as u32;
-        expanded_parents.resize(self.expansion_degree * 2, pad_parent);
-
-        if self.forward() {
-            expanded_parents.sort();
-        } else {
-            // Sort in reverse order.
-            expanded_parents.sort_by(|a, b| a.cmp(b).reverse());
-        }
+        expanded_parents.resize(self.expansion_degree * 2, 0);
+        expanded_parents.sort();
 
         expanded_parents
     }
@@ -345,21 +328,14 @@ where
 
     /// To stacked a graph, we just toggle its reversed field.
     /// All the real work happens when we calculate node parents on-demand.
-    // We always share the two caches (forward/reversed) between
-    // Stacked graphs even if each graph will use only one of those
-    // caches (depending of its direction). This allows to propagate
-    // the caches across different layers, where consecutive even+odd
-    // layers have inverse directions.
     pub fn stacked(&self) -> Self {
         let mut stacked = self.clone();
-        stacked.reversed = !stacked.reversed;
         stacked.layer += 1;
         stacked
     }
 
     pub fn stacked_invert(&self) -> Self {
         let mut stacked = self.clone();
-        stacked.reversed = !stacked.reversed;
         stacked.layer -= 1;
         stacked
     }
@@ -377,17 +353,10 @@ where
         self.expansion_degree
     }
 
-    pub fn reversed(&self) -> bool {
-        self.reversed
+    pub fn base_parents(&self, raw_node: usize, parents: &mut [usize]) {
+        self.base_graph().parents(raw_node, parents);
     }
 
-    pub fn base_parents(&self, raw_node: usize, parents: &mut [usize]) {
-        self.base_graph()
-            .parents(self.real_index(raw_node), parents);
-        for parent in parents.iter_mut().take(self.base_graph().degree()) {
-            *parent = self.real_index(*parent);
-        }
-    }
     /// Assign `self.expansion_degree * 2` parents to `node` using an invertible permutation
     /// that is applied one way for the forward layers and one way for the reversed
     /// ones.
@@ -416,11 +385,7 @@ where
             let cache = cache_lock
                 .get_mut(&self.id)
                 .expect("Invalid cache construction");
-            if self.forward() {
-                cache.write_forward(node as u32, parents);
-            } else {
-                cache.write_reverse(node as u32, parents);
-            }
+            cache.write(node as u32, parents);
         }
 
         // We made sure the cache is filled above, now we can return the value.
@@ -428,24 +393,12 @@ where
         let cache = cache_lock
             .get(&self.id)
             .expect("Invalid cache construction");
-        if self.forward() {
-            cache.read_forward(node as u32, |parents| cb(parents.unwrap()))
-        } else {
-            cache.read_reverse(node as u32, |parents| cb(parents.unwrap()))
-        }
+        cache.read(node as u32, |parents| cb(parents.unwrap()))
     }
 
     /// Calculates the inverse index for 0 based indexing.
     pub fn inv_index(&self, i: usize) -> usize {
         (self.size() - 1) - i
-    }
-
-    pub fn real_index(&self, i: usize) -> usize {
-        if self.reversed {
-            self.inv_index(i)
-        } else {
-            i
-        }
     }
 }
 
@@ -457,7 +410,7 @@ where
     fn eq(&self, other: &StackedGraph<H, G>) -> bool {
         self.base_graph == other.base_graph
             && self.expansion_degree == other.expansion_degree
-            && self.reversed == other.reversed
+            && self.layer == other.layer
     }
 }
 
@@ -511,7 +464,7 @@ mod tests {
         G: Graph<H> + ParameterSetMetadata,
     {
         fn is_pad_node(&self, node: usize) -> bool {
-            self.forward() && node == 0 || self.reversed() && node == self.size() - 1
+            node == 0
         }
     }
 

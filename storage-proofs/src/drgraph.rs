@@ -1,15 +1,17 @@
 use std::cmp;
 use std::marker::PhantomData;
 
+use blake2s_simd::Params as Blake2s;
 use rand::{ChaChaRng, OsRng, Rng, SeedableRng};
 use rayon::prelude::*;
 
 use crate::error::*;
+use crate::fr32::bytes_into_fr_repr_safe;
 use crate::hasher::pedersen::PedersenHasher;
 use crate::hasher::{Domain, Hasher};
 use crate::merkle::{MerkleStore, MerkleTree};
 use crate::parameter_cache::ParameterSetMetadata;
-use crate::util::{data_at_node, NODE_SIZE};
+use crate::util::{data_at_node, data_at_node_offset, NODE_SIZE};
 use merkletree::merkle::FromIndexedParallelIterator;
 
 /// The default hasher currently in use.
@@ -101,10 +103,16 @@ pub trait Graph<H: Hasher>: ::std::fmt::Debug + Clone + PartialEq + Eq {
     fn new(nodes: usize, base_degree: usize, expansion_degree: usize, seed: [u32; 7]) -> Self;
     fn seed(&self) -> [u32; 7];
 
-    // Returns true if a node's parents have lower index than the node.
-    fn forward(&self) -> bool {
-        true
-    }
+    /// Creates the encoding key.
+    /// The algorithm for that is `Blake2s(id | encodedParentNode1 | encodedParentNode1 | ...)`.
+    fn create_key(
+        &self,
+        id: &H::Domain,
+        node: usize,
+        parents: &[usize],
+        parents_data: &[u8],
+        exp_parents_data: Option<&[u8]>,
+    ) -> Result<H::Domain>;
 }
 
 pub fn graph_height(size: usize) -> usize {
@@ -137,6 +145,29 @@ impl<H: Hasher> ParameterSetMetadata for BucketGraph<H> {
 }
 
 impl<H: Hasher> Graph<H> for BucketGraph<H> {
+    fn create_key(
+        &self,
+        id: &H::Domain,
+        node: usize,
+        parents: &[usize],
+        base_parents_data: &[u8],
+        _exp_parents_data: Option<&[u8]>,
+    ) -> Result<H::Domain> {
+        let mut hasher = Blake2s::new().hash_length(NODE_SIZE).to_state();
+        hasher.update(id.as_ref());
+
+        // The hash is about the parents, hence skip if a node doesn't have any parents
+        if node != parents[0] {
+            for parent in parents.iter() {
+                let offset = data_at_node_offset(*parent);
+                hasher.update(&base_parents_data[offset..offset + NODE_SIZE]);
+            }
+        }
+
+        let hash = hasher.finalize();
+        Ok(bytes_into_fr_repr_safe(hash.as_ref()).into())
+    }
+
     #[inline]
     fn parents(&self, node: usize, parents: &mut [usize]) {
         let m = self.degree();

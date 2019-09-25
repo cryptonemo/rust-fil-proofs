@@ -437,7 +437,7 @@ where
             None => pp.graph.merkle_tree(data)?,
         };
 
-        vde::encode(&pp.graph, replica_id, data)?;
+        vde::encode(&pp.graph, replica_id, data, None)?;
 
         let comm_d = tree_d.root();
         let tree_r = pp.graph.merkle_tree(data)?;
@@ -454,7 +454,7 @@ where
         replica_id: &'b H::Domain,
         data: &'b [u8],
     ) -> Result<Vec<u8>> {
-        vde::decode(&pp.graph, replica_id, data)
+        vde::decode(&pp.graph, replica_id, data, None)
     }
 
     fn extract(
@@ -463,7 +463,7 @@ where
         data: &[u8],
         node: usize,
     ) -> Result<Vec<u8>> {
-        Ok(decode_block(&pp.graph, replica_id, data, node)?.into_bytes())
+        Ok(decode_block(&pp.graph, replica_id, data, None, node)?.into_bytes())
     }
 }
 
