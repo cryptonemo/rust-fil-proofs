@@ -130,34 +130,24 @@ impl<'a, H: 'static + Hasher> StackedDrg<'a, H> {
                             trace!("  c_x");
                             let c_x = t_aux
                                 .full_column(&graph_0, challenge)?
-                                .into_proof_all(&t_aux.tree_c);
-
-                            // Only odd-layer labels in the renumbered column C_\bar{X}
-                            trace!("  c_inv_x");
-                            let c_inv_x = t_aux
-                                .full_column(&graph_0, inv_challenge)?
-                                .into_proof_all(&t_aux.tree_c);
+                                .into_proof(&t_aux.tree_c);
 
                             // All labels in the DRG parents.
                             trace!("  drg_parents");
                             let drg_parents = get_drg_parents_columns(challenge)?
                                 .into_iter()
-                                .map(|column| column.into_proof_all(&t_aux.tree_c))
+                                .map(|column| column.into_proof(&t_aux.tree_c))
                                 .collect::<Vec<_>>();
 
-                            // Even layer labels for the expander parents
+                            // Labels for the expander parents
                             trace!("  exp_parents");
                             let exp_parents = get_exp_parents_columns(inv_challenge)?
                                 .into_iter()
-                                .map(|column| {
-                                    let index = graph_1.inv_index(column.index());
-                                    column.into_proof_all(&t_aux.tree_c)
-                                })
+                                .map(|column| column.into_proof(&t_aux.tree_c))
                                 .collect::<Vec<_>>();
 
                             ReplicaColumnProof {
                                 c_x,
-                                c_inv_x,
                                 drg_parents,
                                 exp_parents,
                             }
@@ -172,12 +162,12 @@ impl<'a, H: 'static + Hasher> StackedDrg<'a, H> {
                                 &t_aux.tree_r_last.gen_proof(inv_challenge),
                             );
 
-                            // Even challenged parents (any kind)
-                            trace!(" even parents");
+                            // Challenged parents
+                            trace!(" parents");
                             let mut parents = vec![0; graph_1.degree()];
                             graph_1.parents(inv_challenge, &mut parents);
 
-                            let even_parents_proof = parents
+                            let parents_proof = parents
                                 .into_iter()
                                 .map(|parent| {
                                     MerkleProof::new_from_proof(
@@ -186,7 +176,7 @@ impl<'a, H: 'static + Hasher> StackedDrg<'a, H> {
                                 })
                                 .collect::<Vec<_>>();
 
-                            (inclusion_proof, even_parents_proof)
+                            (inclusion_proof, parents_proof)
                         };
 
                         // Encoding Proof layer 1
@@ -217,14 +207,14 @@ impl<'a, H: 'static + Hasher> StackedDrg<'a, H> {
                                             &graph_1,
                                             inv_challenge,
                                             rpc.c_x.get_verified_node_at_layer(layer),
-                                            rpc.c_inv_x.get_verified_node_at_layer(layer - 1),
+                                            rpc.c_x.get_verified_node_at_layer(layer - 1),
                                         )
                                     } else {
                                         (
                                             &graph_2,
                                             challenge,
                                             rpc.c_x.get_verified_node_at_layer(layer),
-                                            rpc.c_inv_x.get_verified_node_at_layer(layer - 1),
+                                            rpc.c_x.get_verified_node_at_layer(layer - 1),
                                         )
                                     };
 
@@ -470,7 +460,7 @@ mod tests {
     use crate::drgraph::{new_seed, BASE_DEGREE};
     use crate::fr32::fr_into_bytes;
     use crate::hasher::blake2s::Blake2sDomain;
-    use crate::hasher::{Blake2sHasher, Domain, PedersenHasher, Sha256Hasher};
+    use crate::hasher::{Blake2sHasher, PedersenHasher, Sha256Hasher};
     use crate::porep::PoRep;
     use crate::proof::ProofScheme;
     use crate::stacked::{PrivateInputs, SetupParams, EXP_DEGREE};
@@ -634,104 +624,5 @@ mod tests {
         // When this fails, the call to setup should panic, but seems to actually hang (i.e. neither return nor panic) for some reason.
         // When working as designed, the call to setup returns without error.
         let _pp = StackedDrg::<PedersenHasher>::setup(&sp).expect("setup failed");
-    }
-
-    #[test]
-    fn test_odd_column() {
-        let encodings = Encodings::<Blake2sHasher>::new(vec![
-            vec![1; NODE_SIZE],
-            vec![2; NODE_SIZE],
-            vec![3; NODE_SIZE],
-            vec![4; NODE_SIZE],
-            vec![5; NODE_SIZE],
-        ]);
-
-        assert_eq!(
-            encodings.odd_column(0).unwrap(),
-            Column::new_odd(
-                0,
-                vec![
-                    Blake2sDomain::try_from_bytes(&vec![1; NODE_SIZE]).unwrap(),
-                    Blake2sDomain::try_from_bytes(&vec![3; NODE_SIZE]).unwrap(),
-                    Blake2sDomain::try_from_bytes(&vec![5; NODE_SIZE]).unwrap(),
-                ]
-            )
-        );
-    }
-
-    #[test]
-    fn test_even_column() {
-        let encodings = Encodings::<Blake2sHasher>::new(vec![
-            vec![1; NODE_SIZE],
-            vec![2; NODE_SIZE],
-            vec![3; NODE_SIZE],
-            vec![4; NODE_SIZE],
-            vec![5; NODE_SIZE],
-        ]);
-
-        assert_eq!(
-            encodings.even_column(0).unwrap(),
-            Column::new_even(
-                0,
-                vec![
-                    Blake2sDomain::try_from_bytes(&vec![2; NODE_SIZE]).unwrap(),
-                    Blake2sDomain::try_from_bytes(&vec![4; NODE_SIZE]).unwrap(),
-                ]
-            ),
-        );
-    }
-
-    #[test]
-    fn test_full_column() {
-        use itertools::Itertools;
-        let nodes: usize = 8;
-
-        let make_nodes = |x| {
-            let mut res = Vec::new();
-            for i in 0..nodes {
-                res.extend_from_slice(&vec![x as u8; NODE_SIZE / 2]);
-                res.extend_from_slice(&vec![i as u8; NODE_SIZE / 2]);
-            }
-            res
-        };
-
-        let encodings = Encodings::<Blake2sHasher>::new(vec![
-            make_nodes(1),
-            make_nodes(2),
-            make_nodes(3),
-            make_nodes(4),
-            make_nodes(5),
-        ]);
-
-        let graph = StackedBucketGraph::<Blake2sHasher>::new_stacked(
-            nodes,
-            BASE_DEGREE,
-            EXP_DEGREE,
-            0,
-            new_seed(),
-        );
-
-        for node in 0..nodes {
-            let even = encodings.even_column(graph.inv_index(node)).unwrap();
-            let odd = encodings.odd_column(node).unwrap();
-            let all = encodings.full_column(&graph, node).unwrap();
-            assert_eq!(all.index(), node);
-
-            assert_eq!(
-                odd.rows()
-                    .iter()
-                    .cloned()
-                    .interleave(even.rows().iter().cloned())
-                    .collect::<Vec<_>>(),
-                all.rows().clone(),
-            );
-
-            let col_hash = all.hash();
-            let e_hash = even.hash();
-            let o_hash = odd.hash();
-            let combined_hash = hash2(&o_hash, &e_hash);
-
-            assert_eq!(col_hash, combined_hash);
-        }
     }
 }

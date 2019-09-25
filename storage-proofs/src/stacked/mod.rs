@@ -13,7 +13,7 @@ mod proof;
 mod proof_scheme;
 
 pub use self::challenges::{ChallengeRequirements, LayerChallenges};
-pub use self::column::{Column, RawColumn};
+pub use self::column::Column;
 pub use self::column_proof::ColumnProof;
 pub use self::encoding_proof::EncodingProof;
 pub use self::graph::{StackedBucketGraph, StackedGraph, EXP_DEGREE};

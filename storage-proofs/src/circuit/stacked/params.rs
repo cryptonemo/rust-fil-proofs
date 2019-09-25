@@ -92,7 +92,7 @@ impl<H: Hasher> Proof<H> {
                 cs.namespace(|| format!("encoding_proof_{}_alloc_encoded", layer)),
                 layer,
             )?;
-            let decoded_node = replica_column_proof.c_inv_x.alloc_node_at_layer(
+            let decoded_node = replica_column_proof.c_x.alloc_node_at_layer(
                 cs.namespace(|| format!("encoding_proof_{}_alloc_decoded", layer)),
                 layer - 1,
             )?;
@@ -216,7 +216,6 @@ impl<H: Hasher> From<MerkleProof<H>> for InclusionPath<H> {
 #[derive(Debug, Clone)]
 pub struct ReplicaColumnProof<H: Hasher> {
     c_x: ColumnProof<H>,
-    c_inv_x: ColumnProof<H>,
     drg_parents: Vec<ColumnProof<H>>,
     exp_parents: Vec<ColumnProof<H>>,
 }
@@ -225,10 +224,9 @@ impl<H: Hasher> ReplicaColumnProof<H> {
     /// Create an empty proof, used in `blank_circuit`s.
     pub fn empty(params: &PublicParams<H>) -> Self {
         ReplicaColumnProof {
-            c_x: ColumnProof::empty_all(params),
-            c_inv_x: ColumnProof::empty_all(params),
-            drg_parents: vec![ColumnProof::empty_all(params); params.graph.base_graph().degree()],
-            exp_parents: vec![ColumnProof::empty_all(params); 2 * params.graph.expansion_degree()],
+            c_x: ColumnProof::empty(params),
+            drg_parents: vec![ColumnProof::empty(params); params.graph.base_graph().degree()],
+            exp_parents: vec![ColumnProof::empty(params); 2 * params.graph.expansion_degree()],
         }
     }
 
@@ -240,16 +238,12 @@ impl<H: Hasher> ReplicaColumnProof<H> {
     ) -> Result<(), SynthesisError> {
         let ReplicaColumnProof {
             c_x,
-            c_inv_x,
             drg_parents,
             exp_parents,
         } = self;
 
         // c_x
         c_x.synthesize(cs.namespace(|| "c_x"), params, comm_c)?;
-
-        // c_inv_x
-        c_inv_x.synthesize(cs.namespace(|| "c_inv_x"), params, comm_c)?;
 
         // drg parents
         for (i, parent) in drg_parents.into_iter().enumerate() {
@@ -269,14 +263,12 @@ impl<H: Hasher> From<VanillaReplicaColumnProof<H>> for ReplicaColumnProof<H> {
     fn from(vanilla_proof: VanillaReplicaColumnProof<H>) -> Self {
         let VanillaReplicaColumnProof {
             c_x,
-            c_inv_x,
             drg_parents,
             exp_parents,
         } = vanilla_proof;
 
         ReplicaColumnProof {
             c_x: c_x.into(),
-            c_inv_x: c_inv_x.into(),
             drg_parents: drg_parents.into_iter().map(|p| p.into()).collect(),
             exp_parents: exp_parents.into_iter().map(|p| p.into()).collect(),
         }

@@ -239,7 +239,7 @@ impl<H: Hasher> Proof<H> {
             trace!("verify encoding (layer: {})", layer);;
 
             let encoded_node = rpc.c_x.get_node_at_layer(layer);
-            let decoded_node = rpc.c_inv_x.get_node_at_layer(layer - 1);
+            let decoded_node = rpc.c_x.get_node_at_layer(layer - 1);
 
             check!(encoding_proof.verify(replica_id, encoded_node, decoded_node));
         }
@@ -283,11 +283,6 @@ pub struct ReplicaColumnProof<H: Hasher> {
         serialize = "ColumnProof<H>: Serialize",
         deserialize = "ColumnProof<H>: Deserialize<'de>"
     ))]
-    pub c_inv_x: ColumnProof<H>,
-    #[serde(bound(
-        serialize = "ColumnProof<H>: Serialize",
-        deserialize = "ColumnProof<H>: Deserialize<'de>"
-    ))]
     pub drg_parents: Vec<ColumnProof<H>>,
     #[serde(bound(
         serialize = "ColumnProof<H>: Serialize",
@@ -302,10 +297,6 @@ impl<H: Hasher> ReplicaColumnProof<H> {
 
         trace!("  verify c_x");
         check!(self.c_x.verify());
-
-        trace!("  verify c_inv_x");
-        check!(self.c_inv_x.verify());
-        check_eq!(expected_comm_c, self.c_inv_x.root());
 
         trace!("  verify drg_parents");
         for proof in &self.drg_parents {
@@ -372,14 +363,6 @@ impl<H: Hasher> TemporaryAux<H> {
             .and_then(H::Domain::try_from_bytes)
     }
 
-    pub fn even_column(&self, column_index: usize) -> Result<Column<H>> {
-        self.encodings.even_column(column_index)
-    }
-
-    pub fn odd_column(&self, column_index: usize) -> Result<Column<H>> {
-        self.encodings.odd_column(column_index)
-    }
-
     pub fn full_column(
         &self,
         graph: &StackedBucketGraph<H>,
@@ -438,24 +421,6 @@ impl<H: Hasher> Encodings<H> {
         data_at_node(encoding, node_index)
     }
 
-    pub fn even_column(&self, column_index: usize) -> Result<Column<H>> {
-        let rows = (2..self.layers())
-            .step_by(2)
-            .map(|layer| H::Domain::try_from_bytes(self.node_at_layer(layer, column_index)?))
-            .collect::<Result<_>>()?;
-
-        Ok(Column::new_even(column_index, rows))
-    }
-
-    pub fn odd_column(&self, column_index: usize) -> Result<Column<H>> {
-        let rows = (1..self.layers())
-            .step_by(2)
-            .map(|layer| H::Domain::try_from_bytes(self.node_at_layer(layer, column_index)?))
-            .collect::<Result<_>>()?;
-
-        Ok(Column::new_odd(column_index, rows))
-    }
-
     pub fn full_column(
         &self,
         graph: &StackedBucketGraph<H>,
@@ -475,7 +440,7 @@ impl<H: Hasher> Encodings<H> {
             })
             .collect::<Result<_>>()?;
 
-        Ok(Column::new_all(column_index, rows))
+        Ok(Column::new(column_index, rows))
     }
 }
 

@@ -10,7 +10,7 @@ pub fn hash2(a: impl AsRef<[u8]>, b: impl AsRef<[u8]>) -> PedersenDomain {
     hash1(buffer)
 }
 
-/// Hash all elements in the given column. Useful when the column already only contains even or odd values.
+/// Hash all elements in the given column.
 pub fn hash_single_column(column: &[impl AsRef<[u8]>]) -> PedersenDomain {
     let buffer: Vec<u8> = column
         .iter()

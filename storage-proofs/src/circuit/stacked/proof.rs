@@ -208,7 +208,6 @@ impl<'a, H: 'static + Hasher>
     ) -> Vec<Fr> {
         let graph_0 = &pub_params.graph;
         let graph_1 = StackedDrg::transform(graph_0);
-        let graph_2 = StackedDrg::transform(&graph_1);
 
         let mut inputs = Vec::new();
 
@@ -254,18 +253,10 @@ impl<'a, H: 'static + Hasher>
                     inputs.extend(generate_inclusion_inputs(parent));
                 }
 
-                // exp parents even
-                let exp_parents_even =
+                // exp parents
+                let exp_parents =
                     graph_1.expanded_parents(graph_1.inv_index(challenge), |p| p.clone());
-                for parent in exp_parents_even.into_iter() {
-                    inputs.extend(generate_inclusion_inputs(
-                        graph_1.inv_index(parent as usize),
-                    ));
-                }
-
-                // exp parents odd
-                let exp_parents_odd = graph_2.expanded_parents(challenge, |p| p.clone());
-                for parent in exp_parents_odd.into_iter() {
+                for parent in exp_parents.into_iter() {
                     inputs.extend(generate_inclusion_inputs(parent as usize));
                 }
             }

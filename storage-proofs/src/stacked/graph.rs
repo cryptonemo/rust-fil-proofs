@@ -188,7 +188,7 @@ where
     fn create_key(
         &self,
         id: &H::Domain,
-        node: usize,
+        _node: usize,
         parents: &[usize],
         base_parents_data: &[u8],
         exp_parents_data: Option<&[u8]>,
