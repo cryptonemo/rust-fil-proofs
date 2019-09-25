@@ -218,8 +218,7 @@ pub struct ReplicaColumnProof<H: Hasher> {
     c_x: ColumnProof<H>,
     c_inv_x: ColumnProof<H>,
     drg_parents: Vec<ColumnProof<H>>,
-    exp_parents_even: Vec<ColumnProof<H>>,
-    exp_parents_odd: Vec<ColumnProof<H>>,
+    exp_parents: Vec<ColumnProof<H>>,
 }
 
 impl<H: Hasher> ReplicaColumnProof<H> {
@@ -229,14 +228,7 @@ impl<H: Hasher> ReplicaColumnProof<H> {
             c_x: ColumnProof::empty_all(params),
             c_inv_x: ColumnProof::empty_all(params),
             drg_parents: vec![ColumnProof::empty_all(params); params.graph.base_graph().degree()],
-            exp_parents_even: vec![
-                ColumnProof::empty_even(params);
-                2 * params.graph.expansion_degree()
-            ],
-            exp_parents_odd: vec![
-                ColumnProof::empty_odd(params);
-                2 * params.graph.expansion_degree()
-            ],
+            exp_parents: vec![ColumnProof::empty_all(params); 2 * params.graph.expansion_degree()],
         }
     }
 
@@ -250,8 +242,7 @@ impl<H: Hasher> ReplicaColumnProof<H> {
             c_x,
             c_inv_x,
             drg_parents,
-            exp_parents_even,
-            exp_parents_odd,
+            exp_parents,
         } = self;
 
         // c_x
@@ -265,22 +256,9 @@ impl<H: Hasher> ReplicaColumnProof<H> {
             parent.synthesize(cs.namespace(|| format!("drg_parent_{}", i)), params, comm_c)?;
         }
 
-        // exp parents even
-        for (i, parent) in exp_parents_even.into_iter().enumerate() {
-            parent.synthesize(
-                cs.namespace(|| format!("exp_parent_even_{}", i)),
-                params,
-                comm_c,
-            )?;
-        }
-
-        // exp parents odd
-        for (i, parent) in exp_parents_odd.into_iter().enumerate() {
-            parent.synthesize(
-                cs.namespace(|| format!("exp_parent_odd_{}", i)),
-                params,
-                comm_c,
-            )?;
+        // exp parents
+        for (i, parent) in exp_parents.into_iter().enumerate() {
+            parent.synthesize(cs.namespace(|| format!("exp_parent_{}", i)), params, comm_c)?;
         }
 
         Ok(())
@@ -293,16 +271,14 @@ impl<H: Hasher> From<VanillaReplicaColumnProof<H>> for ReplicaColumnProof<H> {
             c_x,
             c_inv_x,
             drg_parents,
-            exp_parents_even,
-            exp_parents_odd,
+            exp_parents,
         } = vanilla_proof;
 
         ReplicaColumnProof {
             c_x: c_x.into(),
             c_inv_x: c_inv_x.into(),
             drg_parents: drg_parents.into_iter().map(|p| p.into()).collect(),
-            exp_parents_even: exp_parents_even.into_iter().map(|p| p.into()).collect(),
-            exp_parents_odd: exp_parents_odd.into_iter().map(|p| p.into()).collect(),
+            exp_parents: exp_parents.into_iter().map(|p| p.into()).collect(),
         }
     }
 }

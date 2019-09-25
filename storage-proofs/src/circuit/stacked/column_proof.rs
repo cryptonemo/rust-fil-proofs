@@ -37,24 +37,6 @@ impl<H: Hasher> ColumnProof<H> {
         }
     }
 
-    /// Create an empty `ColumnProof::Even`, used in `blank_circuit`s.
-    pub fn empty_even(params: &PublicParams<H>) -> Self {
-        ColumnProof::Even {
-            column: Column::empty_even(params),
-            inclusion_path: InclusionPath::empty(&params.graph),
-            o_i: None,
-        }
-    }
-
-    /// Create an empty `ColumnProof::Odd`, used in `blank_circuit`s.
-    pub fn empty_odd(params: &PublicParams<H>) -> Self {
-        ColumnProof::Odd {
-            column: Column::empty_odd(params),
-            inclusion_path: InclusionPath::empty(&params.graph),
-            e_i: None,
-        }
-    }
-
     pub fn column(&self) -> &Column {
         match self {
             ColumnProof::All { ref column, .. } => column,

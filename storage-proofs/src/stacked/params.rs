@@ -293,12 +293,7 @@ pub struct ReplicaColumnProof<H: Hasher> {
         serialize = "ColumnProof<H>: Serialize",
         deserialize = "ColumnProof<H>: Deserialize<'de>"
     ))]
-    pub exp_parents_even: Vec<ColumnProof<H>>,
-    #[serde(bound(
-        serialize = "ColumnProof<H>: Serialize",
-        deserialize = "ColumnProof<H>: Deserialize<'de>"
-    ))]
-    pub exp_parents_odd: Vec<ColumnProof<H>>,
+    pub exp_parents: Vec<ColumnProof<H>>,
 }
 
 impl<H: Hasher> ReplicaColumnProof<H> {
@@ -318,14 +313,8 @@ impl<H: Hasher> ReplicaColumnProof<H> {
             check_eq!(expected_comm_c, proof.root());
         }
 
-        trace!("  verify exp_parents_even");
-        for proof in &self.exp_parents_even {
-            check!(proof.verify());
-            check_eq!(expected_comm_c, proof.root());
-        }
-
-        trace!("  verify exp_parents_odd");
-        for proof in &self.exp_parents_odd {
+        trace!("  verify exp_parents");
+        for proof in &self.exp_parents {
             check!(proof.verify());
             check_eq!(expected_comm_c, proof.root());
         }
@@ -367,10 +356,6 @@ pub struct TemporaryAux<H: Hasher> {
     pub tree_d: Tree<H>,
     pub tree_r_last: Tree<H>,
     pub tree_c: Tree<H>,
-    /// E_i
-    pub es: Vec<H::Domain>,
-    /// O_i
-    pub os: Vec<H::Domain>,
 }
 
 impl<H: Hasher> TemporaryAux<H> {
@@ -437,6 +422,10 @@ impl<H: Hasher> Encodings<H> {
 
         let row_index = layer - 1;
         &self.encodings[row_index][..]
+    }
+
+    pub fn encoding_at_last_layer(&self) -> &[u8] {
+        &self.encodings[self.encodings.len() - 1][..]
     }
 
     /// How many layers are available.

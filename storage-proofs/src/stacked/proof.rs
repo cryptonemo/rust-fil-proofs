@@ -5,7 +5,7 @@ use rayon::prelude::*;
 
 use crate::drgraph::Graph;
 use crate::error::Result;
-use crate::hasher::Hasher;
+use crate::hasher::{Domain, Hasher};
 use crate::merkle::{next_pow2, populate_leaves, MerkleProof, MerkleStore, Store};
 use crate::stacked::{
     challenges::LayerChallenges,
@@ -26,6 +26,26 @@ pub struct StackedDrg<'a, H: 'a + Hasher> {
     _a: PhantomData<&'a H>,
 }
 
+fn encode<T: Domain>(key: T, value: T) -> T {
+    use ff::Field;
+
+    let mut result: Fr = value.into();
+    let key: Fr = key.into();
+
+    result.add_assign(&key);
+    result.into()
+}
+
+fn decode<T: Domain>(key: T, value: T) -> T {
+    use ff::Field;
+
+    let mut result: Fr = value.into();
+    let key: Fr = key.into();
+
+    result.sub_assign(&key);
+    result.into()
+}
+
 impl<'a, H: 'static + Hasher> StackedDrg<'a, H> {
     /// Transform a layer's public parameters, returning new public parameters corresponding to the next layer.
     /// Warning: This method will likely need to be extended for other implementations
@@ -33,11 +53,6 @@ impl<'a, H: 'static + Hasher> StackedDrg<'a, H> {
     /// for zizag are currently present (same applies to [invert_transform]).
     pub(crate) fn transform(graph: &StackedBucketGraph<H>) -> StackedBucketGraph<H> {
         graph.stacked()
-    }
-
-    /// Transform a layer's public parameters, returning new public parameters corresponding to the previous layer.
-    pub(crate) fn invert_transform(graph: &StackedBucketGraph<H>) -> StackedBucketGraph<H> {
-        graph.stacked_invert()
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -55,8 +70,6 @@ impl<'a, H: 'static + Hasher> StackedDrg<'a, H> {
         assert_eq!(t_aux.encodings.len(), layers - 1);
 
         let graph_size = graph_0.size();
-        assert_eq!(t_aux.es.len(), graph_size);
-        assert_eq!(t_aux.os.len(), graph_size);
 
         let graph_1 = Self::transform(&graph_0);
         let graph_2 = Self::transform(&graph_1);
@@ -82,20 +95,11 @@ impl<'a, H: 'static + Hasher> StackedDrg<'a, H> {
             Ok(columns)
         };
 
-        let get_exp_parents_even_columns = |x: usize| -> Result<Vec<Column<H>>> {
+        let get_exp_parents_columns = |x: usize| -> Result<Vec<Column<H>>> {
             graph_1.expanded_parents(x, |parents| {
                 parents
                     .iter()
-                    .map(|parent| t_aux.even_column(*parent as usize))
-                    .collect()
-            })
-        };
-
-        let get_exp_parents_odd_columns = |x: usize| -> Result<Vec<Column<H>>> {
-            graph_2.expanded_parents(x, |parents| {
-                parents
-                    .iter()
-                    .map(|parent| t_aux.odd_column(*parent as usize))
+                    .map(|parent| t_aux.full_column(&graph_1, *parent as usize))
                     .collect()
             })
         };
@@ -141,23 +145,13 @@ impl<'a, H: 'static + Hasher> StackedDrg<'a, H> {
                                 .map(|column| column.into_proof_all(&t_aux.tree_c))
                                 .collect::<Vec<_>>();
 
-                            // Odd layer labels for the expander parents
-                            trace!("  exp_parents_odd");
-                            let exp_parents_odd = get_exp_parents_odd_columns(challenge)?
-                                .into_iter()
-                                .map(|column| {
-                                    let index = column.index();
-                                    column.into_proof_odd(&t_aux.tree_c, t_aux.es[index])
-                                })
-                                .collect::<Vec<_>>();
-
                             // Even layer labels for the expander parents
-                            trace!("  exp_parents_even");
-                            let exp_parents_even = get_exp_parents_even_columns(inv_challenge)?
+                            trace!("  exp_parents");
+                            let exp_parents = get_exp_parents_columns(inv_challenge)?
                                 .into_iter()
                                 .map(|column| {
                                     let index = graph_1.inv_index(column.index());
-                                    column.into_proof_even(&t_aux.tree_c, &graph_1, t_aux.os[index])
+                                    column.into_proof_all(&t_aux.tree_c)
                                 })
                                 .collect::<Vec<_>>();
 
@@ -165,8 +159,7 @@ impl<'a, H: 'static + Hasher> StackedDrg<'a, H> {
                                 c_x,
                                 c_inv_x,
                                 drg_parents,
-                                exp_parents_even,
-                                exp_parents_odd,
+                                exp_parents,
                             }
                         };
 
@@ -285,26 +278,61 @@ impl<'a, H: 'static + Hasher> StackedDrg<'a, H> {
 
         let layers = layer_challenges.layers();
         assert!(layers > 0);
-        assert_eq!(graph.layer(), layers, "invalid graph passed");
+        assert_eq!(graph.layer(), 0, "invalid graph passed");
 
-        let last_graph = (0..layers).try_fold(
-            graph.clone(),
-            |current_graph, _layer| -> Result<StackedBucketGraph<H>> {
-                let inverted = Self::invert_transform(&current_graph);
-                // TODO:
-                // replica = stacked-pos + data
-                // => data = replica - stacked-pos
-                // let res = vde::decode(&inverted, replica_id, data)?;
+        let encodings = Self::encode_layers(graph, layer_challenges, replica_id)?;
 
-                // data.copy_from_slice(&res);
+        for (key_bytes, encoded_node_bytes) in encodings
+            .encoding_at_last_layer()
+            .chunks(NODE_SIZE)
+            .zip(data.chunks_mut(NODE_SIZE))
+        {
+            let key = H::Domain::try_from_bytes(key_bytes)?;
+            let encoded_node = H::Domain::try_from_bytes(encoded_node_bytes)?;
+            let data_node = decode::<H::Domain>(key, encoded_node);
 
-                Ok(inverted)
-            },
-        )?;
-
-        assert_eq!(last_graph.layer(), 0);
+            // store result in the data
+            encoded_node_bytes.copy_from_slice(data_node.as_ref())
+        }
 
         Ok(())
+    }
+
+    fn encode_layers(
+        graph: &StackedBucketGraph<H>,
+        layer_challenges: &LayerChallenges,
+        replica_id: &<H as Hasher>::Domain,
+    ) -> Result<Encodings<H>> {
+        trace!("encode layers");
+        let layers = layer_challenges.layers();
+        let mut encodings: Vec<Vec<u8>> = Vec::with_capacity(layers - 1);
+        let mut current_graph = graph.clone();
+
+        let mut to_encode = vec![0; graph.size() * NODE_SIZE];
+
+        for layer in 0..layers {
+            trace!("encoding (layer: {})", layer);
+            let exp_parents_data = if layer == 0 {
+                None
+            } else {
+                Some(&encodings[layer - 1][..])
+            };
+            vde::encode(&current_graph, replica_id, &mut to_encode, exp_parents_data)?;
+            current_graph = Self::transform(&current_graph);
+
+            if layer != layers - 1 {
+                let p = to_encode.clone();
+                encodings.push(p);
+            }
+        }
+
+        assert_eq!(
+            encodings.len(),
+            layers - 1,
+            "Invalid amount of layers encoded expected"
+        );
+
+        Ok(Encodings::<H>::new(encodings))
     }
 
     pub(crate) fn transform_and_replicate_layers(
@@ -340,82 +368,58 @@ impl<'a, H: 'static + Hasher> StackedDrg<'a, H> {
         };
 
         #[allow(clippy::type_complexity)]
-        let (tree_d, tree_r_last, tree_c, comm_r, encodings, es, os): (
+        let (tree_d, tree_r_last, tree_c, comm_r, encodings): (
             Tree<H>,
             Tree<H>,
             Tree<H>,
             H::Domain,
             Encodings<_>,
-            Vec<H::Domain>,
-            Vec<H::Domain>,
         ) = crossbeam::thread::scope(|s| -> Result<_> {
-            // 1. Build the MerkleTree over the original data
+            // Encode all layers
+            let encodings_handle =
+                s.spawn(move |_| Self::encode_layers(graph, layer_challenges, replica_id));
+
+            // Build the MerkleTree over the original data
             trace!("build merkle tree for the original data");
-            let tree_d_handle = s.spawn(|_| match data_tree {
+            let tree_d = match data_tree {
                 Some(t) => Ok(t),
                 None => build_tree(&data),
-            });
-            // 2. Encode all layers
-            trace!("encode layers");
-            let mut encodings: Vec<Vec<u8>> = Vec::with_capacity(layers - 1);
-            let mut current_graph = graph.clone();
+            }?;
 
-            // we do a Proof of Space, not of here, so we encode 0s.
-            let mut to_encode = vec![0; data.len()];
+            let encodings = encodings_handle.join().expect("failed to encode layers")?;
 
-            for layer in 0..layers {
-                trace!("encoding (layer: {})", layer);
-                let exp_parents_data = if layer == 0 {
-                    None
-                } else {
-                    Some(&encodings[layer - 1][..])
-                };
-                vde::encode(&current_graph, replica_id, &mut to_encode, exp_parents_data)?;
-                current_graph = Self::transform(&current_graph);
+            // encode original data
+            encodings
+                .encoding_at_last_layer()
+                .par_chunks(NODE_SIZE)
+                .zip(data.par_chunks_mut(NODE_SIZE))
+                .try_for_each(|(key_bytes, data_node_bytes)| -> Result<()> {
+                    let key = H::Domain::try_from_bytes(key_bytes)?;
+                    let data_node = H::Domain::try_from_bytes(data_node_bytes)?;
+                    let encoded_node = encode::<H::Domain>(key, data_node);
+                    // store result in the data
+                    data_node_bytes.copy_from_slice(encoded_node.as_ref());
 
-                assert_eq!(to_encode.len(), NODE_SIZE * nodes_count);
+                    Ok(())
+                })?;
 
-                if layer != layers - 1 {
-                    let p = to_encode.clone();
-                    encodings.push(p);
-                }
-            }
-
-            assert_eq!(encodings.len(), layers - 1);
-
-            let encodings = Encodings::<H>::new(encodings);
-
-            let r_last = to_encode;
+            // the last layer is now stored in the data slice
+            let r_last = data;
 
             // Construct final replica commitment
             let tree_r_last_handle = s.spawn(move |_| build_tree(&r_last));
 
-            // TODO: what happens with even and odd here?
-
-            // 3. Construct Column Commitments
-            let odd_columns = (0..nodes_count)
+            // Construct Column Commitments
+            let cs = (0..nodes_count)
                 .into_par_iter()
-                .map(|x| encodings.odd_column(x));
-
-            let even_columns = (0..nodes_count)
-                .into_par_iter()
-                .map(|x| encodings.even_column(graph.inv_index(x)));
-
-            // O_i = H( e_i^(1) || .. )
-            let os = odd_columns
-                .map(|c| c.map(|c| Fr::from(c.hash()).into()))
-                .collect::<Result<Vec<H::Domain>>>()?;
-
-            // E_i = H( e_\bar{i}^(2) || .. )
-            let es = even_columns
-                .map(|c| c.map(|c| Fr::from(c.hash()).into()))
-                .collect::<Result<Vec<H::Domain>>>()?;
-
-            // C_i = H(O_i || E_i)
-            let cs = os
-                .par_iter()
-                .zip(es.par_iter())
-                .flat_map(|(o_i, e_i)| hash2(o_i, e_i).as_ref().to_vec())
+                .flat_map(|x| {
+                    encodings
+                        .full_column(graph, x)
+                        .expect("failed to calculate column hash")
+                        .hash()
+                        .as_ref()
+                        .to_vec()
+                })
                 .collect::<Vec<u8>>();
 
             // Build the tree for CommC
@@ -427,19 +431,14 @@ impl<'a, H: 'static + Hasher> StackedDrg<'a, H> {
 
             let tree_r_last = tree_r_last_handle.join()??;
 
+            // TODO: is comm_r_last of the encodings or the data
+            // TODO: what is comm_r
+
             // comm_r = H(comm_c || comm_r_last)
             let comm_r: H::Domain = Fr::from(hash2(tree_c.root(), tree_r_last.root())).into();
 
-            // TODO: encode data: data(tree_r_last) + data(tree_d) = replica?
-            // TODO: what is comm_r now?
-
-            let tree_d = tree_d_handle.join()??;
-
-            Ok((tree_d, tree_r_last, tree_c, comm_r, encodings, es, os))
+            Ok((tree_d, tree_r_last, tree_c, comm_r, encodings))
         })??;
-
-        // store the last layer in the original data
-        tree_r_last.read_into_all(0, &mut data[..NODE_SIZE * nodes_count]);
 
         Ok((
             Tau {
@@ -452,8 +451,6 @@ impl<'a, H: 'static + Hasher> StackedDrg<'a, H> {
             },
             TemporaryAux {
                 encodings,
-                es,
-                os,
                 tree_c,
                 tree_d,
                 tree_r_last,
@@ -505,6 +502,10 @@ mod tests {
     }
 
     fn test_extract_all<H: 'static + Hasher>() {
+        femme::pretty::Logger::new()
+            .start(log::LevelFilter::Trace)
+            .ok();
+
         let rng = &mut XorShiftRng::from_seed([0x3dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
         let replica_id: H::Domain = rng.gen();
         let nodes = 8;
@@ -537,11 +538,8 @@ mod tests {
 
         assert_ne!(data, data_copy);
 
-        let transformed_pp = pp.transform_to_last_layer();
-
-        let decoded_data =
-            StackedDrg::<H>::extract_all(&transformed_pp, &replica_id, data_copy.as_mut_slice())
-                .expect("failed to extract data");
+        let decoded_data = StackedDrg::<H>::extract_all(&pp, &replica_id, data_copy.as_mut_slice())
+            .expect("failed to extract data");
 
         assert_eq!(data, decoded_data);
     }

@@ -198,16 +198,20 @@ where
 
         let base_parents_count = self.base_graph().degree();
 
-        // The hash is about the parents, hence skip if a node doesn't have any parents
-        for (i, parent) in parents.iter().enumerate() {
+        // Base parents
+        for parent in parents.iter().take(base_parents_count) {
             let offset = data_at_node_offset(*parent);
+            hasher.update(&base_parents_data[offset..offset + NODE_SIZE]);
+        }
 
-            if i < base_parents_count {
-                // Base parents
-                hasher.update(&base_parents_data[offset..offset + NODE_SIZE]);
-            } else {
-                let exp_parents_data = exp_parents_data.expect("create_key must be called with expander parents for all layers except the first");
-                // Expander parents
+        // Expander parents
+        if self.layer > 0 {
+            let exp_parents_data = exp_parents_data.expect(
+                "create_key must be called with expander parents for all layers except the first",
+            );
+
+            for parent in parents.iter().skip(base_parents_count) {
+                let offset = data_at_node_offset(*parent);
                 hasher.update(&exp_parents_data[offset..offset + NODE_SIZE]);
             }
         }
@@ -430,34 +434,6 @@ mod tests {
     use crate::drgraph::{new_seed, BASE_DEGREE};
     use crate::hasher::{Blake2sHasher, PedersenHasher, Sha256Hasher};
 
-    fn assert_graph_ascending<H: Hasher, G: Graph<H>>(g: G) {
-        for i in 0..g.size() {
-            let mut parents = vec![0; g.degree()];
-            g.parents(i, &mut parents);
-            for p in parents {
-                if i == 0 {
-                    assert!(p == i);
-                } else {
-                    assert!(p < i);
-                }
-            }
-        }
-    }
-
-    fn assert_graph_descending<H: Hasher, G: Graph<H>>(g: G) {
-        for i in 0..g.size() {
-            let mut parents = vec![0; g.degree()];
-            g.parents(i, &mut parents);
-            for p in parents {
-                if i == g.size() - 1 {
-                    assert!(p == i);
-                } else {
-                    assert!(p > i);
-                }
-            }
-        }
-    }
-
     impl<'a, H, G> StackedGraph<H, G>
     where
         H: Hasher,
@@ -466,29 +442,6 @@ mod tests {
         fn is_pad_node(&self, node: usize) -> bool {
             node == 0
         }
-    }
-
-    #[test]
-    fn stacked_graph_stackeds_pedersen() {
-        test_stacked_graph_stackeds::<PedersenHasher>();
-    }
-
-    #[test]
-    fn stacked_graph_stackeds_sha256() {
-        test_stacked_graph_stackeds::<Sha256Hasher>();
-    }
-
-    #[test]
-    fn stacked_graph_stackeds_blake2s() {
-        test_stacked_graph_stackeds::<Blake2sHasher>();
-    }
-
-    fn test_stacked_graph_stackeds<H: 'static + Hasher>() {
-        let g = StackedBucketGraph::<H>::new_stacked(50, BASE_DEGREE, EXP_DEGREE, 0, new_seed());
-        let gz = g.stacked();
-
-        assert_graph_ascending(g);
-        assert_graph_descending(gz);
     }
 
     #[test]
