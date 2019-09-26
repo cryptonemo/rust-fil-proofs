@@ -352,13 +352,15 @@ jobs:
     executor:
       name: win/vs2019
       shell: powershell.exe
+    working_directory: ~/crate
     steps:
       - checkout
       - run:
           name: "Install Rust"
           command: |
-              Invoke-WebRequest https://win.rustup.rs/ -OutFile .\rustup-init.exe
-              .\rustup-init.exe -yv --default-host x86_64-pc-windows-msvc
+              cd
+              Invoke-WebRequest "https://win.rustup.rs/" -OutFile rustup-init.exe
+              rustup-init.exe -yv --default-host x86_64-pc-windows-msvc
               set PATH=%PATH%;%USERPROFILE%\.cargo\bin
               rustc -vV
               cargo -vV
