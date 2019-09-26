@@ -5,7 +5,7 @@ jobs:
     docker:
       - image: filecoin/rust:latest
     working_directory: /mnt/crate
-    resource_class: xlarge
+    resource_class: 2XL
     steps:
       - checkout
       - run:
@@ -35,7 +35,7 @@ jobs:
     docker:
       - image: filecoin/rust:latest
     working_directory: /mnt/crate
-    resource_class: xlarge
+    resource_class: 2XL
     steps:
       - checkout
       - attach_workspace:
@@ -65,7 +65,7 @@ jobs:
     docker:
       - image: filecoin/rust:latest
     working_directory: /mnt/crate
-    resource_class: xlarge
+    resource_class: 2XL
     steps:
       - checkout
       - attach_workspace:
@@ -84,7 +84,7 @@ jobs:
     docker:
       - image: filecoin/rust:latest
     working_directory: /mnt/crate
-    resource_class: xlarge
+    resource_class: 2XL
     steps:
       - checkout
       - attach_workspace:
@@ -104,7 +104,7 @@ jobs:
     docker:
       - image: filecoin/rust:latest
     working_directory: /mnt/crate
-    resource_class: xlarge
+    resource_class: 2XL
     steps:
       - checkout
       - attach_workspace:
@@ -128,7 +128,7 @@ jobs:
     docker:
       - image: filecoin/rust:latest
     working_directory: /mnt/crate
-    resource_class: xlarge
+    resource_class: 2XL
     steps:
       - checkout
       - attach_workspace:
@@ -148,7 +148,7 @@ jobs:
     docker:
       - image: filecoin/rust:latest
     working_directory: /mnt/crate
-    resource_class: xlarge
+    resource_class: 2XL
     steps:
       - checkout
       - attach_workspace:
@@ -170,7 +170,7 @@ jobs:
     environment:
       RUSTFLAGS: -Awarnings -C target-cpu=native
     working_directory: /mnt/crate
-    resource_class: xlarge
+    resource_class: 2XL
     steps:
       - add_ssh_keys:
           fingerprints:
@@ -238,7 +238,7 @@ jobs:
     docker:
       - image: filecoin/rust:latest
     working_directory: /mnt/crate
-    resource_class: xlarge
+    resource_class: 2XL
     steps:
       - checkout
       - attach_workspace:
@@ -254,7 +254,7 @@ jobs:
     docker:
       - image: filecoin/rust:latest
     working_directory: /mnt/crate
-    resource_class: xlarge
+    resource_class: 2XL
     steps:
       - checkout
       - attach_workspace:
@@ -270,7 +270,7 @@ jobs:
     docker:
       - image: filecoin/rust:latest
     working_directory: /mnt/crate
-    resource_class: xlarge
+    resource_class: 2XL
     steps:
       - checkout
       - attach_workspace:
