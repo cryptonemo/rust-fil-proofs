@@ -358,9 +358,9 @@ jobs:
       - run:
           name: "Install Rust"
           command: |
-              cd
-              Invoke-WebRequest "https://win.rustup.rs/" -OutFile rustup-init.exe
-              rustup-init.exe -yv --default-host x86_64-pc-windows-msvc
+              echo %cd%
+              Invoke-WebRequest "https://win.rustup.rs/" -OutFile ~/crate/rustup-init.exe
+              ~/crate/rustup-init.exe -yv --default-host x86_64-pc-windows-msvc
               set PATH=%PATH%;%USERPROFILE%\.cargo\bin
               rustc -vV
               cargo -vV
