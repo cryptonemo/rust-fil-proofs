@@ -1,5 +1,8 @@
 version: 2.1
 
+orbs:
+  win: circleci/windows@1.0.0
+
 jobs:
   cargo_fetch:
     docker:
@@ -344,6 +347,24 @@ jobs:
           name: Validate Commit Messages
           command: |
               npx commitlint --extends @commitlint/config-angular --from origin/master --to $CIRCLE_SHA1
+
+  test_windows:
+    executor: win/vs2019
+    steps:
+      - checkout
+      - run:
+        name: Install Rust
+        command: |
+            wget "https://win.rustup.rs/" -OutFile rustup-init.exe
+            rustup-init -yv --default-host x86_64-pc-windows-msvc
+            set PATH=%PATH%;%USERPROFILE%\.cargo\bin
+            rustc -vV
+            cargo -vV
+      - run:
+        name: Test
+        command: |
+            cargo test --all --release
+
 workflows:
   version: 2
   test_all:
@@ -382,6 +403,7 @@ workflows:
           requires:
             - cargo_fetch
       - validate_commit_msg
+      - test_windows
       - metrics_capture:
           requires:
             - cargo_fetch
