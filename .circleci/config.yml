@@ -353,17 +353,17 @@ jobs:
     steps:
       - checkout
       - run:
-        name: Install Rust
-        command: |
-            wget "https://win.rustup.rs/" -OutFile rustup-init.exe
-            rustup-init -yv --default-host x86_64-pc-windows-msvc
-            set PATH=%PATH%;%USERPROFILE%\.cargo\bin
-            rustc -vV
-            cargo -vV
+          name: Install Rust
+          command: |
+              wget "https://win.rustup.rs/" -OutFile rustup-init.exe
+              rustup-init -yv --default-host x86_64-pc-windows-msvc
+              set PATH=%PATH%;%USERPROFILE%\.cargo\bin
+              rustc -vV
+              cargo -vV
       - run:
-        name: Test
-        command: |
-            cargo test --all --release
+          name: Test
+          command: |
+              cargo test --all --release
 
 workflows:
   version: 2
