@@ -1,7 +1,6 @@
 use std::marker::PhantomData;
 
-use merkletree::store::DiskStore;
-use merkletree::store::Store;
+use merkletree::store::{Store, DiskStore, StoreConfig};
 use paired::bls12_381::Fr;
 use serde::{Deserialize, Serialize};
 
@@ -120,7 +119,7 @@ impl<T: Domain, S: Domain> PublicInputs<T, S> {
 #[derive(Debug)]
 pub struct PrivateInputs<H: Hasher, G: Hasher> {
     pub p_aux: PersistentAux<H::Domain>,
-    pub t_aux: TemporaryAux<H, G>,
+    pub t_aux: TemporaryAuxCache<H, G>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -324,17 +323,18 @@ pub struct PersistentAux<D> {
     pub comm_r_last: D,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct TemporaryAux<H: Hasher, G: Hasher> {
     /// The encoded nodes for 1..layers.
     pub encodings: Encodings<H>,
-    pub tree_d: Tree<G>,
-    pub tree_r_last: Tree<H>,
-    pub tree_c: Tree<H>,
+    pub tree_d_config: StoreConfig,
+    pub tree_r_last_config: StoreConfig,
+    pub tree_c_config: StoreConfig,
+    pub _g: PhantomData<G>,
 }
 
 impl<H: Hasher, G: Hasher> TemporaryAux<H, G> {
-    pub fn encoding_at_layer(&self, layer: usize) -> &DiskStore<H::Domain> {
+    pub fn encoding_at_layer(&self, layer: usize) -> DiskStore<H::Domain> {
         self.encodings.encoding_at_layer(layer)
     }
 
@@ -348,13 +348,63 @@ impl<H: Hasher, G: Hasher> TemporaryAux<H, G> {
 }
 
 #[derive(Debug)]
+pub struct TemporaryAuxCache<H: Hasher, G: Hasher> {
+    /// The encoded nodes for 1..layers.
+    pub encodings: EncodingsCache<H>,
+    pub tree_d: Tree<G>,
+    pub tree_r_last: Tree<H>,
+    pub tree_c: Tree<H>,
+}
+
+impl<H: Hasher, G: Hasher> TemporaryAuxCache<H, G> {
+    pub fn new(t_aux: &TemporaryAux<H, G>) -> Self {
+        let tree_d_size = t_aux.tree_d_config.size.unwrap();
+        let tree_d_store: DiskStore<G::Domain> = DiskStore::new_from_disk(
+            tree_d_size, t_aux.tree_d_config.clone()).unwrap();
+        let tree_d: Tree<G> = MerkleTree::from_data_store(
+            tree_d_store, tree_d_size);
+
+        let tree_c_size = t_aux.tree_c_config.size.unwrap();
+        let tree_c_store: DiskStore<H::Domain> = DiskStore::new_from_disk(
+            tree_c_size, t_aux.tree_c_config.clone()).unwrap();
+        let tree_c: Tree<H> = MerkleTree::from_data_store(
+            tree_c_store, tree_c_size);
+
+        let tree_r_last_size = t_aux.tree_r_last_config.size.unwrap();
+        let tree_r_last_store: DiskStore<H::Domain> = DiskStore::new_from_disk(
+            tree_r_last_size, t_aux.tree_r_last_config.clone()).unwrap();
+        let tree_r_last: Tree<H> = MerkleTree::from_data_store(
+            tree_r_last_store, tree_r_last_size);
+
+        TemporaryAuxCache {
+            encodings: EncodingsCache::new(&t_aux.encodings),
+            tree_d,
+            tree_r_last,
+            tree_c,
+        }
+    }
+
+    pub fn encoding_at_layer(&self, layer: usize) -> &DiskStore<H::Domain> {
+        self.encodings.encoding_at_layer(layer)
+    }
+
+    pub fn domain_node_at_layer(&self, layer: usize, node_index: u32) -> Result<H::Domain> {
+        Ok(self.encoding_at_layer(layer).read_at(node_index as usize))
+    }
+
+    pub fn column(&self, column_index: u32) -> Result<Column<H>> {
+        self.encodings.column(column_index)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Encodings<H: Hasher> {
-    encodings: Vec<DiskStore<H::Domain>>,
+    encodings: Vec<StoreConfig>,
     _h: PhantomData<H>,
 }
 
 impl<H: Hasher> Encodings<H> {
-    pub fn new(encodings: Vec<DiskStore<H::Domain>>) -> Self {
+    pub fn new(encodings: Vec<StoreConfig>) -> Self {
         Encodings {
             encodings,
             _h: PhantomData,
@@ -369,6 +419,73 @@ impl<H: Hasher> Encodings<H> {
         self.encodings.is_empty()
     }
 
+    pub fn encoding_at_layer(&self, layer: usize) -> DiskStore<H::Domain> {
+        assert!(layer != 0, "Layer cannot be 0");
+        assert!(
+            layer <= self.layers(),
+            "Layer {} is not available (only {} layers available)",
+            layer,
+            self.layers()
+        );
+
+        let row_index = layer - 1;
+        let config = self.encodings[row_index].clone();
+        assert!(config.size.is_some());
+
+        DiskStore::new_from_disk(config.size.unwrap(), config).unwrap()
+    }
+
+    /// Returns encoding on the last layer.
+    pub fn encoding_at_last_layer(&self) -> DiskStore<H::Domain> {
+        self.encoding_at_layer(self.encodings.len() - 1)
+    }
+
+    /// How many layers are available.
+    fn layers(&self) -> usize {
+        self.encodings.len()
+    }
+
+    /// Build the column for the given node.
+    pub fn column(&self, node: u32) -> Result<Column<H>> {
+        let rows = self
+            .encodings
+            .iter()
+            .map(|encoding| {
+                assert!(encoding.size.is_some());
+                let store = DiskStore::new_from_disk(
+                    encoding.size.unwrap(), encoding.clone()).unwrap();
+                store.read_at(node as usize)
+            })
+            .collect();
+
+        Ok(Column::new(node, rows))
+    }
+}
+
+#[derive(Debug)]
+pub struct EncodingsCache<H: Hasher> {
+    encodings: Vec<DiskStore<H::Domain>>,
+    _h: PhantomData<H>,
+}
+
+impl<H: Hasher> EncodingsCache<H> {
+    pub fn new(encodings: &Encodings<H>) -> Self {
+        let mut disk_store_encodings: Vec<DiskStore<H::Domain>> =
+            Vec::with_capacity(encodings.len());
+        for i in 0..encodings.len() {
+            disk_store_encodings.push(encodings.encoding_at_layer(i + 1));
+        }
+
+        EncodingsCache {
+            encodings: disk_store_encodings,
+            _h: PhantomData,
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.encodings.len()
+    }
+
     pub fn encoding_at_layer(&self, layer: usize) -> &DiskStore<H::Domain> {
         assert!(layer != 0, "Layer cannot be 0");
         assert!(
@@ -379,6 +496,7 @@ impl<H: Hasher> Encodings<H> {
         );
 
         let row_index = layer - 1;
+
         &self.encodings[row_index]
     }
 

@@ -364,12 +364,24 @@ mod tests {
             layer_challenges: layer_challenges.clone(),
         };
 
+        // MT for original data is always named tree-d, and it will be
+        // referenced later in the process as such.
+        use merkletree::store::{StoreConfig, DEFAULT_CACHED_ABOVE_BASE_LAYER};
+        let cache_dir = tempfile::tempdir().unwrap();
+        let cache_path = cache_dir.as_ref().to_str().unwrap();
+        let config = StoreConfig::new(
+            cache_path.to_string(),
+            "tree-d".to_string(),
+            DEFAULT_CACHED_ABOVE_BASE_LAYER,
+        );
+
         let pp = StackedDrg::<PedersenHasher, Blake2sHasher>::setup(&sp).expect("setup failed");
         let (tau, (p_aux, t_aux)) = StackedDrg::<PedersenHasher, Blake2sHasher>::replicate(
             &pp,
             &replica_id.into(),
             data_copy.as_mut_slice(),
             None,
+            Some(config),
         )
         .expect("replication failed");
         assert_ne!(data, data_copy);
@@ -383,6 +395,11 @@ mod tests {
                 tau: Some(tau.into()),
                 k: None,
             };
+
+        // Convert TemporaryAux to TemporaryAuxCache, which instantiates all
+        // elements based on the configs stored in TemporaryAux.
+        use crate::stacked::TemporaryAuxCache;
+        let t_aux = TemporaryAuxCache::new(&t_aux);
 
         let priv_inputs = PrivateInputs::<PedersenHasher, Blake2sHasher> {
             p_aux: p_aux.into(),
@@ -509,12 +526,24 @@ mod tests {
             partitions: Some(partition_count),
         };
 
+        // MT for original data is always named tree-d, and it will be
+        // referenced later in the process as such.
+        use merkletree::store::{StoreConfig, DEFAULT_CACHED_ABOVE_BASE_LAYER};
+        let cache_dir = tempfile::tempdir().unwrap();
+        let cache_path = cache_dir.as_ref().to_str().unwrap();
+        let config = StoreConfig::new(
+            cache_path.to_string(),
+            "tree-d".to_string(),
+            DEFAULT_CACHED_ABOVE_BASE_LAYER,
+        );
+
         let public_params = StackedCompound::setup(&setup_params).expect("setup failed");
         let (tau, (p_aux, t_aux)) = StackedDrg::replicate(
             &public_params.vanilla_params,
             &replica_id.into(),
             data_copy.as_mut_slice(),
             None,
+            Some(config)
         )
         .expect("replication failed");
 
@@ -528,6 +557,12 @@ mod tests {
             tau: Some(tau),
             k: None,
         };
+
+        // Convert TemporaryAux to TemporaryAuxCache, which instantiates all
+        // elements based on the configs stored in TemporaryAux.
+        use crate::stacked::TemporaryAuxCache;
+        let t_aux = TemporaryAuxCache::new(&t_aux);
+
         let private_inputs = PrivateInputs::<H, Blake2sHasher> { p_aux, t_aux };
 
         {

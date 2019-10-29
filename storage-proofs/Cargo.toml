@@ -15,7 +15,8 @@ bench = false
 bitvec = "0.5"
 rand = "0.4"
 libc = "0.2"
-merkletree = "0.11"
+# FIXME: This should be an udpated release version.
+merkletree = { git = "https://github.com/filecoin-project/merkle_light", rev = "re-org" }
 failure = "0.1"
 byteorder = "1"
 config = "0.9.3"
