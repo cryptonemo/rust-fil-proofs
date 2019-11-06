@@ -565,6 +565,17 @@ mod tests {
             challenges_count: 1,
         };
 
+        // MT for original data is always named tree-d, and it will be
+        // referenced later in the process as such.
+        use merkletree::store::{StoreConfig, DEFAULT_CACHED_ABOVE_BASE_LAYER};
+        let cache_dir = tempfile::tempdir().unwrap();
+        let cache_path = cache_dir.as_ref().to_str().unwrap();
+        let config = StoreConfig::new(
+            cache_path.to_string(),
+            "tree-d".to_string(),
+            DEFAULT_CACHED_ABOVE_BASE_LAYER,
+        );
+
         let pp = drgporep::DrgPoRep::<PedersenHasher, BucketGraph<_>>::setup(&sp)
             .expect("failed to create drgporep setup");
         let (tau, aux) = drgporep::DrgPoRep::<PedersenHasher, _>::replicate(
@@ -572,6 +583,7 @@ mod tests {
             &replica_id.into(),
             data.as_mut_slice(),
             None,
+            Some(config),
         )
         .expect("failed to replicate");
 
@@ -580,6 +592,7 @@ mod tests {
             challenges: vec![challenge],
             tau: Some(tau.into()),
         };
+
         let priv_inputs = drgporep::PrivateInputs::<PedersenHasher> {
             tree_d: &aux.tree_d,
             tree_r: &aux.tree_r,
@@ -744,11 +757,23 @@ mod tests {
         let public_params =
             DrgPoRepCompound::<H, BucketGraph<_>>::setup(&setup_params).expect("setup failed");
 
+        // MT for original data is always named tree-d, and it will be
+        // referenced later in the process as such.
+        use merkletree::store::{StoreConfig, DEFAULT_CACHED_ABOVE_BASE_LAYER};
+        let cache_dir = tempfile::tempdir().unwrap();
+        let cache_path = cache_dir.as_ref().to_str().unwrap();
+        let config = StoreConfig::new(
+            cache_path.to_string(),
+            "tree-d".to_string(),
+            DEFAULT_CACHED_ABOVE_BASE_LAYER,
+        );
+
         let (tau, aux) = drgporep::DrgPoRep::<H, _>::replicate(
             &public_params.vanilla_params,
             &replica_id.into(),
             data.as_mut_slice(),
             None,
+            Some(config)
         )
         .expect("failed to replicate");
 

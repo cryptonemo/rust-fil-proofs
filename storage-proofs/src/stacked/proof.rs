@@ -227,7 +227,7 @@ impl<'a, H: 'static + Hasher, G: 'static + Hasher> StackedDrg<'a, H, G> {
         let (encodings, _) = Self::generate_layers(graph, layer_challenges, replica_id, false, config)?;
 
         let encodings: EncodingsCache<H> = EncodingsCache::new(&encodings);
-        let size = encodings.encoding_at_last_layer().len();
+        let size = merkletree::store::Store::len(encodings.encoding_at_last_layer());
 
         for (key, encoded_node_bytes) in encodings
             .encoding_at_last_layer()
@@ -517,7 +517,7 @@ impl<'a, H: 'static + Hasher, G: 'static + Hasher> StackedDrg<'a, H, G> {
                 // Encode original data into the last layer.
                 let tree_r_last_handle = s.spawn(|_| {
                     info!("encoding data");
-                    let size = encodings.encoding_at_last_layer().len();
+                    let size = merkletree::store::Store::len(encodings.encoding_at_last_layer());
                     encodings
                         .encoding_at_last_layer()
                         .read_range(0..size)
