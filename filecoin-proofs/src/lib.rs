@@ -3,9 +3,9 @@
 //requires nightly, or later stable version
 //#![warn(clippy::unwrap_used)]
 
-mod api;
-mod caches;
-mod commitment_reader;
+pub mod api;
+pub mod caches;
+pub mod commitment_reader;
 
 pub mod constants;
 pub mod fr32;
