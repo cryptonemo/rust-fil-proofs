@@ -37,13 +37,13 @@ use crate::PoStType;
 #[derive(Debug)]
 pub struct PrivateReplicaInfo<Tree: MerkleTreeTrait> {
     /// Path to the replica.
-    replica: PathBuf,
+    pub replica: PathBuf,
     /// The replica commitment.
-    comm_r: Commitment,
+    pub comm_r: Commitment,
     /// Persistent Aux.
-    aux: PersistentAux<<Tree::Hasher as Hasher>::Domain>,
+    pub aux: PersistentAux<<Tree::Hasher as Hasher>::Domain>,
     /// Contains sector-specific (e.g. merkle trees) assets
-    cache_dir: PathBuf,
+    pub cache_dir: PathBuf,
 
     _t: PhantomData<Tree>,
 }
@@ -184,7 +184,7 @@ impl<Tree: 'static + MerkleTreeTrait> PrivateReplicaInfo<Tree> {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct PublicReplicaInfo {
     /// The replica commitment.
-    comm_r: Commitment,
+    pub comm_r: Commitment,
 }
 
 impl std::cmp::Ord for PublicReplicaInfo {
