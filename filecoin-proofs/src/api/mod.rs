@@ -33,7 +33,7 @@ use crate::types::{
 
 mod post;
 mod seal;
-pub(crate) mod util;
+pub mod util;
 
 pub use self::post::*;
 pub use self::seal::*;
