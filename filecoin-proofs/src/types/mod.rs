@@ -1,8 +1,5 @@
 use serde::{Deserialize, Serialize};
-use storage_proofs::hasher::Hasher;
 use storage_proofs::porep::stacked;
-use storage_proofs::post::fallback::*;
-use storage_proofs::sector::*;
 
 use crate::constants::*;
 
@@ -38,8 +35,21 @@ pub use storage_proofs::porep::stacked::Labels;
 pub type DataTree = storage_proofs::merkle::BinaryMerkleTree<DefaultPieceHasher>;
 
 pub use storage_proofs::merkle::MerkleProof;
-pub use storage_proofs::merkle::MerkleTreeTrait;
+//pub use storage_proofs_v2::merkle::MerkleTreeTrait;
 
+pub use filecoin_proofs_v2::types::{
+    SealCommitOutput,
+    SealCommitPhase1Output,
+    SealPreCommitOutput,
+    SealPreCommitPhase1Output,
+    //FallbackPoStSectorProof,
+    VanillaSealProof,
+    BINARY_ARITY,
+    OCT_ARITY,
+};
+
+pub use storage_proofs::merkle::MerkleTreeTrait;
+/*
 /// Arity for oct trees, used for comm_r_last.
 pub const OCT_ARITY: usize = 8;
 
@@ -52,7 +62,7 @@ pub struct SealPreCommitOutput {
     pub comm_d: Commitment,
 }
 
-pub type VanillaSealProof<Tree> = storage_proofs::porep::stacked::Proof<Tree, DefaultPieceHasher>;
+pub type VanillaSealProof<Tree> = storage_proofs_v2::porep::stacked::Proof<Tree, DefaultPieceHasher>;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SealCommitPhase1Output<Tree: MerkleTreeTrait> {
@@ -87,15 +97,18 @@ pub struct SealPreCommitPhase1Output<Tree: MerkleTreeTrait> {
 }
 
 pub type SnarkProof = Vec<u8>;
-pub type VanillaProof<Tree> = Proof<<Tree as MerkleTreeTrait>::Proof>;
+*/
+
+pub type VanillaProof<Tree> =
+    storage_proofs::post::fallback::Proof<<Tree as storage_proofs::merkle::MerkleTreeTrait>::Proof>;
 
 // This FallbackPoStSectorProof is used during Fallback PoSt, but
 // contains only Vanilla proof information and is not a full Fallback
 // PoSt proof.
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct FallbackPoStSectorProof<Tree: MerkleTreeTrait> {
-    pub sector_id: SectorId,
-    pub comm_r: <Tree::Hasher as Hasher>::Domain,
+pub struct FallbackPoStSectorProof<Tree: storage_proofs::merkle::MerkleTreeTrait> {
+    pub sector_id: storage_proofs::sector::SectorId,
+    pub comm_r: <Tree::Hasher as storage_proofs::hasher::Hasher>::Domain,
     #[serde(bound(
         serialize = "VanillaProof<Tree>: Serialize",
         deserialize = "VanillaProof<Tree>: Deserialize<'de>"

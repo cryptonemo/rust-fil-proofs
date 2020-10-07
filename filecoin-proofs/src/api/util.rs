@@ -8,7 +8,7 @@ use typenum::Unsigned;
 
 use crate::types::{Commitment, SectorSize};
 
-pub(crate) fn as_safe_commitment<H: Domain, T: AsRef<str>>(
+pub fn as_safe_commitment<H: Domain, T: AsRef<str>>(
     comm: &[u8; 32],
     commitment_name: T,
 ) -> Result<H> {
@@ -17,7 +17,7 @@ pub(crate) fn as_safe_commitment<H: Domain, T: AsRef<str>>(
         .with_context(|| format!("Invalid commitment ({})", commitment_name.as_ref(),))
 }
 
-pub(crate) fn commitment_from_fr(fr: Fr) -> Commitment {
+pub fn commitment_from_fr(fr: Fr) -> Commitment {
     let mut commitment = [0; 32];
     for (i, b) in fr_into_bytes(&fr).iter().enumerate() {
         commitment[i] = *b;
@@ -25,7 +25,7 @@ pub(crate) fn commitment_from_fr(fr: Fr) -> Commitment {
     commitment
 }
 
-pub(crate) fn get_base_tree_size<Tree: MerkleTreeTrait>(sector_size: SectorSize) -> Result<usize> {
+pub fn get_base_tree_size<Tree: MerkleTreeTrait>(sector_size: SectorSize) -> Result<usize> {
     let base_tree_leaves = u64::from(sector_size) as usize
         / std::mem::size_of::<<Tree::Hasher as Hasher>::Domain>()
         / get_base_tree_count::<Tree>();
@@ -33,6 +33,6 @@ pub(crate) fn get_base_tree_size<Tree: MerkleTreeTrait>(sector_size: SectorSize)
     get_merkle_tree_len(base_tree_leaves, Tree::Arity::to_usize())
 }
 
-pub(crate) fn get_base_tree_leafs<Tree: MerkleTreeTrait>(base_tree_size: usize) -> Result<usize> {
+pub fn get_base_tree_leafs<Tree: MerkleTreeTrait>(base_tree_size: usize) -> Result<usize> {
     get_merkle_tree_leafs(base_tree_size, Tree::Arity::to_usize())
 }

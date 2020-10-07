@@ -10,14 +10,14 @@ use std::time::{Duration, Instant};
 
 use clap::{arg_enum, value_t, App, Arg};
 use fil_proofs_tooling::shared::{create_replica, PROVER_ID, RANDOMNESS};
-use filecoin_proofs::constants::{SectorShape8MiB, SECTOR_SIZE_8_MIB};
-use filecoin_proofs::types::{PoStConfig, SectorSize};
-use filecoin_proofs::{
+use filecoin_proofs_v2::constants::{SectorShape8MiB, SECTOR_SIZE_8_MIB};
+use filecoin_proofs_v2::types::{PoStConfig, SectorSize};
+use filecoin_proofs_v2::{
     generate_winning_post, PoStType, PrivateReplicaInfo, WINNING_POST_CHALLENGE_COUNT,
     WINNING_POST_SECTOR_COUNT,
 };
 use log::{debug, info};
-use storage_proofs::sector::SectorId;
+use storage_proofs_v2::sector::SectorId;
 
 type MerkleTree = SectorShape8MiB;
 const SECTOR_SIZE: u64 = SECTOR_SIZE_8_MIB;

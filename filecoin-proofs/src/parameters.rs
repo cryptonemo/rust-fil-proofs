@@ -4,19 +4,21 @@ use storage_proofs::post::fallback;
 use storage_proofs::proof::ProofScheme;
 
 use crate::constants::*;
-use crate::types::{MerkleTreeTrait, PaddedBytesAmount, PoStConfig};
 
-type WinningPostSetupParams = fallback::SetupParams;
-pub type WinningPostPublicParams = fallback::PublicParams;
+use crate::types::PoStConfig;
+pub use crate::types::{MerkleTreeTrait, PaddedBytesAmount};
 
-type WindowPostSetupParams = fallback::SetupParams;
-pub type WindowPostPublicParams = fallback::PublicParams;
+pub type WinningPostSetupParams = storage_proofs::post::fallback::SetupParams;
+pub type WinningPostPublicParams = storage_proofs::post::fallback::PublicParams;
+
+pub type WindowPostSetupParams = storage_proofs::post::fallback::SetupParams;
+pub type WindowPostPublicParams = storage_proofs::post::fallback::PublicParams;
 
 pub fn public_params<Tree: 'static + MerkleTreeTrait>(
     sector_bytes: PaddedBytesAmount,
     partitions: usize,
     porep_id: [u8; 32],
-) -> Result<stacked::PublicParams<Tree>> {
+) -> Result<storage_proofs::porep::stacked::PublicParams<Tree>> {
     StackedDrg::<Tree, DefaultPieceHasher>::setup(&setup_params(
         sector_bytes,
         partitions,

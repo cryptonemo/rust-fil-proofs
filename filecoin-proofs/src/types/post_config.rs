@@ -1,10 +1,14 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
+use storage_proofs::merkle::MerkleTreeTrait;
 use storage_proofs::parameter_cache::{self, CacheableParameters};
 use storage_proofs::post::fallback;
 
+//use filecoin_proofs::types::*;
+
 use crate::types::*;
+//pub use filecoin_proofs_v2::types::PoStConfig;
 
 #[derive(Clone, Debug)]
 pub struct PoStConfig {

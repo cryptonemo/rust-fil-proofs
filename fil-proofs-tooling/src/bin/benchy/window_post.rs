@@ -6,18 +6,18 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use anyhow::{ensure, Context};
 use bincode::{deserialize, serialize};
-use fil_proofs_tooling::measure::FuncMeasurement;
-use fil_proofs_tooling::shared::{PROVER_ID, RANDOMNESS, TICKET_BYTES};
-use fil_proofs_tooling::{measure, Metadata};
-use filecoin_proofs::constants::{
+use fil_proofs_tooling_v2::measure::FuncMeasurement;
+use fil_proofs_tooling_v2::shared::{PROVER_ID, RANDOMNESS, TICKET_BYTES};
+use fil_proofs_tooling_v2::{measure, Metadata};
+use filecoin_proofs_v2::constants::{
     POREP_PARTITIONS, WINDOW_POST_CHALLENGE_COUNT, WINDOW_POST_SECTOR_COUNT,
 };
-use filecoin_proofs::types::{
+use filecoin_proofs_v2::types::{
     PaddedBytesAmount, PieceInfo, PoRepConfig, PoRepProofPartitions, PoStConfig,
     SealCommitPhase1Output, SealPreCommitOutput, SealPreCommitPhase1Output, SectorSize,
     UnpaddedBytesAmount,
 };
-use filecoin_proofs::{
+use filecoin_proofs_v2::{
     add_piece, generate_piece_commitment, generate_window_post, seal_commit_phase1,
     seal_commit_phase2, seal_pre_commit_phase1, seal_pre_commit_phase2, validate_cache_for_commit,
     validate_cache_for_precommit_phase2, verify_window_post, with_shape, PoStType,
@@ -25,8 +25,8 @@ use filecoin_proofs::{
 };
 use log::info;
 use serde::{Deserialize, Serialize};
-use storage_proofs::merkle::MerkleTreeTrait;
-use storage_proofs::sector::SectorId;
+use storage_proofs_v2::merkle::MerkleTreeTrait;
+use storage_proofs_v2::sector::SectorId;
 
 const SECTOR_ID: u64 = 0;
 
