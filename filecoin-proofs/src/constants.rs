@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::sync::RwLock;
 
 use lazy_static::lazy_static;
-use storage_proofs::hasher::Hasher;
-use storage_proofs::util::NODE_SIZE;
+use storage_proofs_v2::hasher::Hasher;
+use storage_proofs_v2::util::NODE_SIZE;
 use typenum::{U0, U2, U8};
 
 use crate::types::UnpaddedBytesAmount;
@@ -24,8 +24,8 @@ pub const WINNING_POST_SECTOR_COUNT: usize = 1;
 
 pub const WINDOW_POST_CHALLENGE_COUNT: usize = 10;
 
-pub const DRG_DEGREE: usize = storage_proofs::drgraph::BASE_DEGREE;
-pub const EXP_DEGREE: usize = storage_proofs::porep::stacked::EXP_DEGREE;
+pub const DRG_DEGREE: usize = storage_proofs_v2::drgraph::BASE_DEGREE;
+pub const EXP_DEGREE: usize = storage_proofs_v2::porep::stacked::EXP_DEGREE;
 
 lazy_static! {
     pub static ref POREP_MINIMUM_CHALLENGES: RwLock<HashMap<u64, u64>> = RwLock::new(
@@ -114,16 +114,16 @@ pub const MINIMUM_RESERVED_BYTES_FOR_PIECE_IN_FULLY_ALIGNED_SECTOR: u64 =
 pub const MIN_PIECE_SIZE: UnpaddedBytesAmount = UnpaddedBytesAmount(127);
 
 /// The hasher used for creating comm_d.
-pub type DefaultPieceHasher = storage_proofs::hasher::Sha256Hasher;
+pub type DefaultPieceHasher = storage_proofs_v2::hasher::Sha256Hasher;
 pub type DefaultPieceDomain = <DefaultPieceHasher as Hasher>::Domain;
 
 /// The default hasher for merkle trees currently in use.
-pub type DefaultTreeHasher = storage_proofs::hasher::PoseidonHasher;
+pub type DefaultTreeHasher = storage_proofs_v2::hasher::PoseidonHasher;
 pub type DefaultTreeDomain = <DefaultTreeHasher as Hasher>::Domain;
 
-pub type DefaultBinaryTree = storage_proofs::merkle::BinaryMerkleTree<DefaultTreeHasher>;
-pub type DefaultOctTree = storage_proofs::merkle::OctMerkleTree<DefaultTreeHasher>;
-pub type DefaultOctLCTree = storage_proofs::merkle::OctLCMerkleTree<DefaultTreeHasher>;
+pub type DefaultBinaryTree = storage_proofs_v2::merkle::BinaryMerkleTree<DefaultTreeHasher>;
+pub type DefaultOctTree = storage_proofs_v2::merkle::OctMerkleTree<DefaultTreeHasher>;
+pub type DefaultOctLCTree = storage_proofs_v2::merkle::OctLCMerkleTree<DefaultTreeHasher>;
 
 // Generic shapes
 pub type SectorShapeBase = LCTree<DefaultTreeHasher, U8, U0, U0>;
@@ -174,8 +174,8 @@ pub fn is_sector_shape_top2(sector_size: u64) -> bool {
     }
 }
 
-pub use storage_proofs::merkle::{DiskTree, LCTree};
-pub use storage_proofs::parameter_cache::{
+pub use storage_proofs_v2::merkle::{DiskTree, LCTree};
+pub use storage_proofs_v2::parameter_cache::{
     get_parameter_data, get_parameter_data_from_id, get_verifying_key_data,
 };
 
@@ -231,7 +231,7 @@ mod tests {
     use super::*;
 
     use generic_array::typenum::Unsigned;
-    use storage_proofs::merkle::MerkleTreeTrait;
+    use storage_proofs_v2::merkle::MerkleTreeTrait;
 
     fn canonical_shape(sector_size: u64) -> (usize, usize, usize) {
         // This could perhaps be cleaned up, but I think it expresses the intended constraints

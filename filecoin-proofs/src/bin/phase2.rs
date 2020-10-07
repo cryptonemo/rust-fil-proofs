@@ -12,14 +12,14 @@ use std::time::{Duration, Instant};
 use bellperson::groth16;
 use byteorder::{BigEndian, ReadBytesExt};
 use clap::{App, AppSettings, Arg, ArgGroup, SubCommand};
-use filecoin_proofs::constants::*;
-use filecoin_proofs::parameters::{
+use filecoin_proofs_v2::constants::*;
+use filecoin_proofs_v2::parameters::{
     setup_params, window_post_public_params, winning_post_public_params,
 };
-use filecoin_proofs::types::{
+use filecoin_proofs_v2::types::{
     PaddedBytesAmount, PoRepConfig, PoRepProofPartitions, PoStConfig, PoStType, SectorSize,
 };
-use filecoin_proofs::with_shape;
+use filecoin_proofs_v2::with_shape;
 use groupy::{CurveAffine, EncodedPoint};
 use log::{error, info, warn};
 use paired::bls12_381::{Bls12, G1Affine, G1Uncompressed, G2Affine, G2Uncompressed};
@@ -29,16 +29,16 @@ use rand::rngs::OsRng;
 use rand::{RngCore, SeedableRng};
 use rand_chacha::ChaChaRng;
 use simplelog::{self, CombinedLogger, LevelFilter, TermLogger, TerminalMode, WriteLogger};
-use storage_proofs::compound_proof::{self, CompoundProof};
-use storage_proofs::hasher::Sha256Hasher;
-use storage_proofs::merkle::MerkleTreeTrait;
-use storage_proofs::parameter_cache::{
+use storage_proofs_v2::compound_proof::{self, CompoundProof};
+use storage_proofs_v2::hasher::Sha256Hasher;
+use storage_proofs_v2::merkle::MerkleTreeTrait;
+use storage_proofs_v2::parameter_cache::{
     self, metadata_id, parameter_id, verifying_key_id, CacheableParameters,
 };
-use storage_proofs::porep::stacked::{
+use storage_proofs_v2::porep::stacked::{
     PublicParams as PoRepPublicParams, StackedCircuit, StackedCompound, StackedDrg,
 };
-use storage_proofs::post::fallback::{
+use storage_proofs_v2::post::fallback::{
     FallbackPoSt, FallbackPoStCircuit, FallbackPoStCompound, PublicParams as PoStPublicParams,
 };
 

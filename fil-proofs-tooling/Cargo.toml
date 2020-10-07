@@ -10,6 +10,9 @@ repository = "https://github.com/filecoin-project/rust-fil-proofs"
 readme = "README.md"
 
 [dependencies]
+fil-proofs-tooling-v2 = { package = "fil-proofs-tooling", git = "https://github.com/cryptonemo/rust-fil-proofs", branch = "upgrade-testing" }
+filecoin-proofs-v2 = { package = "filecoin-proofs", git = "https://github.com/cryptonemo/rust-fil-proofs", branch = "upgrade-testing" }
+storage-proofs-v2 = { package = "storage-proofs", git = "https://github.com/cryptonemo/rust-fil-proofs", branch = "upgrade-testing" }
 clap = "2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

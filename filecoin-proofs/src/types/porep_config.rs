@@ -1,12 +1,13 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
-use storage_proofs::parameter_cache::{self, CacheableParameters};
-use storage_proofs::porep::stacked::{StackedCircuit, StackedCompound};
+use storage_proofs_v2::parameter_cache::{self, CacheableParameters};
+use storage_proofs_v2::porep::stacked::{StackedCircuit, StackedCompound};
 
-use crate::constants::DefaultPieceHasher;
-use crate::types::*;
+use filecoin_proofs_v2::constants::DefaultPieceHasher;
+use filecoin_proofs_v2::types::*;
 
+/*
 #[derive(Clone, Copy, Debug)]
 pub struct PoRepConfig {
     pub sector_size: SectorSize,
@@ -74,3 +75,4 @@ impl PoRepConfig {
         Ok(parameter_cache::parameter_cache_params_path(&id))
     }
 }
+*/

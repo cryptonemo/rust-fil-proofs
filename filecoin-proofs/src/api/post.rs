@@ -8,30 +8,64 @@ use bincode::deserialize;
 use generic_array::typenum::Unsigned;
 use log::{info, trace};
 use merkletree::store::StoreConfig;
-use storage_proofs::cache_key::CacheKey;
-use storage_proofs::compound_proof::{self, CompoundProof};
-use storage_proofs::hasher::{Domain, Hasher};
-use storage_proofs::merkle::{
+use storage_proofs_v2::cache_key::CacheKey;
+use storage_proofs_v2::compound_proof::{self, CompoundProof};
+use storage_proofs_v2::hasher::{Domain, Hasher};
+use storage_proofs_v2::merkle::{
     create_tree, get_base_tree_count, split_config_and_replica, MerkleTreeTrait, MerkleTreeWrapper,
 };
-use storage_proofs::multi_proof::MultiProof;
-use storage_proofs::post::fallback;
-use storage_proofs::post::fallback::SectorProof;
-use storage_proofs::proof::ProofScheme;
-use storage_proofs::sector::*;
-use storage_proofs::settings;
-use storage_proofs::util::default_rows_to_discard;
+use storage_proofs_v2::multi_proof::MultiProof;
+use storage_proofs_v2::post::fallback;
+use storage_proofs_v2::post::fallback::SectorProof;
+use storage_proofs_v2::proof::ProofScheme;
+use storage_proofs_v2::sector::*;
+use storage_proofs_v2::settings;
+use storage_proofs_v2::util::default_rows_to_discard;
 
+use filecoin_proofs_v2::*;
+
+/*
 use crate::api::util::{as_safe_commitment, get_base_tree_leafs, get_base_tree_size};
 use crate::caches::{get_post_params, get_post_verifying_key};
 use crate::constants::*;
 use crate::parameters::{window_post_setup_params, winning_post_setup_params};
 use crate::types::{
-    ChallengeSeed, Commitment, FallbackPoStSectorProof, PersistentAux, PoStConfig, ProverId,
+    ChallengeSeed, Commitment, FallbackPoStSectorProof, PersistentAux, ProverId,
     SectorSize, SnarkProof, TemporaryAux, VanillaProof,
 };
 use crate::PoStType;
+*/
 
+use filecoin_proofs_v2::api::util::{as_safe_commitment, get_base_tree_leafs, get_base_tree_size};
+use filecoin_proofs_v2::caches::{get_post_params, get_post_verifying_key};
+use filecoin_proofs_v2::constants::*;
+use filecoin_proofs_v2::parameters::{window_post_setup_params, winning_post_setup_params};
+use filecoin_proofs_v2::types::{
+    ChallengeSeed, Commitment, FallbackPoStSectorProof, PersistentAux, ProverId,
+    SectorSize, SnarkProof, TemporaryAux, VanillaProof,
+};
+use filecoin_proofs_v2::PoStType;
+
+/*
+pub use filecoin_proofs_v2::{
+    crate::api::util::{as_safe_commitment, get_base_tree_leafs, get_base_tree_size},
+    caches::{get_post_params, get_post_verifying_key},
+    constants::*,
+    parameters::{window_post_setup_params, winning_post_setup_params},
+    types::{
+        ChallengeSeed, Commitment, FallbackPoStSectorProof, PersistentAux, ProverId,
+        SectorSize, SnarkProof, TemporaryAux, VanillaProof,
+    },
+    PoStType,
+    PoStConfig,
+    PrivateReplicaInfo,
+    PublicReplicaInfo,
+
+    clear_cache,
+    clear_caches,
+};
+*/
+/*
 /// The minimal information required about a replica, in order to be able to generate
 /// a PoSt over it.
 #[derive(Debug)]
@@ -243,6 +277,7 @@ pub fn clear_caches<Tree: MerkleTreeTrait>(
 
     Ok(())
 }
+*/
 
 /// Generates a Winning proof-of-spacetime with provided vanilla proofs.
 pub fn generate_winning_post_with_vanilla<Tree: 'static + MerkleTreeTrait>(
@@ -466,6 +501,10 @@ pub fn generate_fallback_sector_challenges<Tree: 'static + MerkleTreeTrait>(
         sector_size: u64::from(post_config.sector_size),
         challenge_count: post_config.challenge_count,
         sector_count: post_config.sector_count,
+        is_winning: match post_config.typ {
+            PoStType::Window => false,
+            PoStType::Winning => true,
+        }
     };
 
     let mut sector_challenges: BTreeMap<SectorId, Vec<u64>> = BTreeMap::new();

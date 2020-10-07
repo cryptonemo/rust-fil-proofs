@@ -1,10 +1,13 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
-use storage_proofs::parameter_cache::{self, CacheableParameters};
-use storage_proofs::post::fallback;
+use storage_proofs_v2::parameter_cache::{self, CacheableParameters};
+use storage_proofs_v2::post::fallback;
 
-use crate::types::*;
+use filecoin_proofs_v2::types::*;
+
+pub use filecoin_proofs_v2::types::PoStConfig;
+/*
 
 #[derive(Clone, Debug)]
 pub struct PoStConfig {
@@ -86,3 +89,4 @@ impl PoStConfig {
         Ok(parameter_cache::parameter_cache_params_path(&id))
     }
 }
+*/

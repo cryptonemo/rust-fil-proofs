@@ -6,40 +6,51 @@ use anyhow::{ensure, Context, Result};
 use bincode::deserialize;
 use log::info;
 use merkletree::store::{DiskStore, LevelCacheStore, StoreConfig};
-use storage_proofs::cache_key::CacheKey;
-use storage_proofs::hasher::Hasher;
-use storage_proofs::measurements::{measure_op, Operation};
-use storage_proofs::merkle::get_base_tree_count;
-use storage_proofs::porep::stacked::{
+use storage_proofs_v2::cache_key::CacheKey;
+use storage_proofs_v2::hasher::Hasher;
+use storage_proofs_v2::measurements::{measure_op, Operation};
+use storage_proofs_v2::merkle::get_base_tree_count;
+use storage_proofs_v2::porep::stacked::{
     generate_replica_id, PersistentAux, StackedDrg, TemporaryAux,
 };
-use storage_proofs::porep::PoRep;
-use storage_proofs::sector::SectorId;
-use storage_proofs::util::default_rows_to_discard;
+use storage_proofs_v2::porep::PoRep;
+use storage_proofs_v2::sector::SectorId;
+use storage_proofs_v2::util::default_rows_to_discard;
 use typenum::Unsigned;
 
-use crate::api::util::{as_safe_commitment, get_base_tree_leafs, get_base_tree_size};
-use crate::commitment_reader::CommitmentReader;
-use crate::constants::{
+use filecoin_proofs_v2::api::util::{as_safe_commitment, get_base_tree_leafs, get_base_tree_size};
+use filecoin_proofs_v2::commitment_reader::CommitmentReader;
+use filecoin_proofs_v2::constants::{
     DefaultBinaryTree, DefaultOctTree, DefaultPieceDomain, DefaultPieceHasher,
     MINIMUM_RESERVED_BYTES_FOR_PIECE_IN_FULLY_ALIGNED_SECTOR as MINIMUM_PIECE_SIZE,
 };
-use crate::fr32::write_unpadded;
-use crate::parameters::public_params;
-use crate::types::{
+use filecoin_proofs_v2::fr32::write_unpadded;
+use filecoin_proofs_v2::parameters::public_params;
+use filecoin_proofs_v2::types::{
     Commitment, MerkleTreeTrait, PaddedBytesAmount, PieceInfo, PoRepConfig, PoRepProofPartitions,
     ProverId, SealPreCommitPhase1Output, Ticket, UnpaddedByteIndex, UnpaddedBytesAmount,
 };
 
 mod post;
 mod seal;
-pub(crate) mod util;
+pub mod util;
 
 pub use self::post::*;
 pub use self::seal::*;
 
-use storage_proofs::pieces::generate_piece_commitment_bytes_from_source;
+use storage_proofs_v2::pieces::generate_piece_commitment_bytes_from_source;
 
+pub use filecoin_proofs_v2:: {
+    get_unsealed_range,
+    unseal_range,
+    generate_piece_commitment,
+    add_piece,
+    write_and_preprocess,
+    validate_cache_for_precommit_phase2,
+    validate_cache_for_commit,
+};
+
+/*
 /// Unseals the sector at `sealed_path` and returns the bytes for a piece
 /// whose first (unpadded) byte begins at `offset` and ends at `offset` plus
 /// `num_bytes`, inclusive. Note that the entire sector is unsealed each time
@@ -591,7 +602,7 @@ mod tests {
     use paired::bls12_381::Fr;
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
-    use storage_proofs::fr32::bytes_into_fr;
+    use storage_proofs_v2::fr32::bytes_into_fr;
 
     use crate::constants::*;
     use crate::types::SectorSize;
@@ -692,3 +703,4 @@ mod tests {
         }
     }
 }
+ */

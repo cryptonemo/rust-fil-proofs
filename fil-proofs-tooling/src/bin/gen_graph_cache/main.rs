@@ -7,12 +7,12 @@ use anyhow::Result;
 use clap::{value_t, App, Arg};
 use serde::{Deserialize, Serialize};
 
-use filecoin_proofs::constants::*;
-use filecoin_proofs::types::*;
-use filecoin_proofs::with_shape;
-use storage_proofs::hasher::Sha256Hasher;
-use storage_proofs::porep::stacked::{LayerChallenges, SetupParams, StackedDrg};
-use storage_proofs::proof::ProofScheme;
+use filecoin_proofs_v2::constants::*;
+use filecoin_proofs_v2::types::*;
+use filecoin_proofs_v2::with_shape;
+use storage_proofs_v2::hasher::Sha256Hasher;
+use storage_proofs_v2::porep::stacked::{LayerChallenges, SetupParams, StackedDrg};
+use storage_proofs_v2::proof::ProofScheme;
 
 const PARENT_CACHE_JSON_OUTPUT: &str = "./parent_cache.json";
 
@@ -30,8 +30,8 @@ fn gen_graph_cache<Tree: 'static + MerkleTreeTrait>(
     parent_cache_summary_map: &mut ParentCacheSummaryMap,
 ) -> Result<()> {
     let nodes = (sector_size / 32) as usize;
-    let drg_degree = filecoin_proofs::constants::DRG_DEGREE;
-    let expansion_degree = filecoin_proofs::constants::EXP_DEGREE;
+    let drg_degree = filecoin_proofs_v2::constants::DRG_DEGREE;
+    let expansion_degree = filecoin_proofs_v2::constants::EXP_DEGREE;
 
     // Note that layers and challenge_count don't affect the graph, so
     // we just use dummy values of 1 for the setup params.

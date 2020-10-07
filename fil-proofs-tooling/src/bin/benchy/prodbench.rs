@@ -2,11 +2,11 @@ use bellperson::util_cs::bench_cs::BenchCS;
 use bellperson::Circuit;
 use fil_proofs_tooling::shared::{create_replicas, PROVER_ID, RANDOMNESS, TICKET_BYTES};
 use fil_proofs_tooling::{measure, Metadata};
-use filecoin_proofs::constants::{DefaultOctTree, POREP_PARTITIONS};
-use filecoin_proofs::types::PaddedBytesAmount;
-use filecoin_proofs::types::SectorSize;
-use filecoin_proofs::types::*;
-use filecoin_proofs::{
+use filecoin_proofs_v2::constants::{DefaultOctTree, POREP_PARTITIONS};
+use filecoin_proofs_v2::types::PaddedBytesAmount;
+use filecoin_proofs_v2::types::SectorSize;
+use filecoin_proofs_v2::types::*;
+use filecoin_proofs_v2::{
     clear_cache, constants::DefaultOctLCTree, seal_commit_phase1, seal_commit_phase2,
     validate_cache_for_commit, PoRepConfig,
 };
@@ -15,14 +15,14 @@ use paired::bls12_381::Bls12;
 use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 use serde::{Deserialize, Serialize};
-use storage_proofs::compound_proof::CompoundProof;
-use storage_proofs::hasher::Sha256Hasher;
+use storage_proofs_v2::compound_proof::CompoundProof;
+use storage_proofs_v2::hasher::Sha256Hasher;
 #[cfg(feature = "measurements")]
-use storage_proofs::measurements::Operation;
+use storage_proofs_v2::measurements::Operation;
 #[cfg(feature = "measurements")]
-use storage_proofs::measurements::OP_MEASUREMENTS;
-use storage_proofs::parameter_cache::CacheableParameters;
-use storage_proofs::proof::ProofScheme;
+use storage_proofs_v2::measurements::OP_MEASUREMENTS;
+use storage_proofs_v2::parameter_cache::CacheableParameters;
+use storage_proofs_v2::proof::ProofScheme;
 
 const SEED: [u8; 16] = [
     0x59, 0x62, 0xbe, 0x5d, 0x76, 0x3d, 0x31, 0x8d, 0x17, 0xdb, 0x37, 0x32, 0x54, 0x06, 0xbc, 0xe5,
@@ -153,15 +153,15 @@ fn augment_with_op_measurements(mut output: &mut ProdbenchOutputs) {
 }
 
 fn configure_global_config(inputs: &ProdbenchInputs) {
-    filecoin_proofs::constants::LAYERS
+    filecoin_proofs_v2::constants::LAYERS
         .write()
         .expect("LAYERS poisoned")
         .insert(inputs.sector_size_bytes(), inputs.stacked_layers as usize);
-    filecoin_proofs::constants::POREP_PARTITIONS
+    filecoin_proofs_v2::constants::POREP_PARTITIONS
         .write()
         .expect("POREP_PARTITIONS poisoned")
         .insert(inputs.sector_size_bytes(), inputs.porep_partitions);
-    filecoin_proofs::constants::POREP_MINIMUM_CHALLENGES
+    filecoin_proofs_v2::constants::POREP_MINIMUM_CHALLENGES
         .write()
         .expect("POREP_MINIMUM_CHALLENGES poisoned")
         .insert(inputs.sector_size_bytes(), inputs.porep_challenges);
@@ -272,14 +272,14 @@ fn run_measure_circuits(i: &ProdbenchInputs) -> CircuitOutputs {
 }
 
 fn measure_porep_circuit(i: &ProdbenchInputs) -> usize {
-    use storage_proofs::porep::stacked::{
+    use storage_proofs_v2::porep::stacked::{
         LayerChallenges, SetupParams, StackedCompound, StackedDrg,
     };
 
     let layers = i.stacked_layers as usize;
     let challenge_count = i.porep_challenges as usize;
-    let drg_degree = filecoin_proofs::constants::DRG_DEGREE;
-    let expansion_degree = filecoin_proofs::constants::EXP_DEGREE;
+    let drg_degree = filecoin_proofs_v2::constants::DRG_DEGREE;
+    let expansion_degree = filecoin_proofs_v2::constants::EXP_DEGREE;
     let nodes = (i.sector_size_bytes() / 32) as usize;
     let layer_challenges = LayerChallenges::new(layers, challenge_count);
 
@@ -327,8 +327,8 @@ fn generate_params(i: &ProdbenchInputs) {
 }
 
 fn cache_porep_params(porep_config: PoRepConfig) {
-    use filecoin_proofs::parameters::public_params;
-    use storage_proofs::porep::stacked::{StackedCompound, StackedDrg};
+    use filecoin_proofs_v2::parameters::public_params;
+    use storage_proofs_v2::porep::stacked::{StackedCompound, StackedDrg};
 
     let dummy_porep_id = [0; 32];
     let public_params = public_params(

@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
-use storage_proofs::hasher::Hasher;
-use storage_proofs::porep::stacked;
-use storage_proofs::post::fallback::*;
-use storage_proofs::sector::*;
+use storage_proofs_v2::hasher::Hasher;
+use storage_proofs_v2::porep::stacked;
+use storage_proofs_v2::post::fallback::*;
+use storage_proofs_v2::sector::*;
 
 use crate::constants::*;
 
@@ -31,14 +31,14 @@ pub use stacked::TemporaryAux;
 pub type ProverId = [u8; 32];
 pub type Ticket = [u8; 32];
 
-pub type Tree = storage_proofs::merkle::OctMerkleTree<DefaultTreeHasher>;
-pub type LCTree = storage_proofs::merkle::OctLCMerkleTree<DefaultTreeHasher>;
+pub type Tree = storage_proofs_v2::merkle::OctMerkleTree<DefaultTreeHasher>;
+pub type LCTree = storage_proofs_v2::merkle::OctLCMerkleTree<DefaultTreeHasher>;
 
-pub use storage_proofs::porep::stacked::Labels;
-pub type DataTree = storage_proofs::merkle::BinaryMerkleTree<DefaultPieceHasher>;
+pub use storage_proofs_v2::porep::stacked::Labels;
+pub type DataTree = storage_proofs_v2::merkle::BinaryMerkleTree<DefaultPieceHasher>;
 
-pub use storage_proofs::merkle::MerkleProof;
-pub use storage_proofs::merkle::MerkleTreeTrait;
+pub use storage_proofs_v2::merkle::MerkleProof;
+pub use storage_proofs_v2::merkle::MerkleTreeTrait;
 
 /// Arity for oct trees, used for comm_r_last.
 pub const OCT_ARITY: usize = 8;
@@ -52,7 +52,7 @@ pub struct SealPreCommitOutput {
     pub comm_d: Commitment,
 }
 
-pub type VanillaSealProof<Tree> = storage_proofs::porep::stacked::Proof<Tree, DefaultPieceHasher>;
+pub type VanillaSealProof<Tree> = storage_proofs_v2::porep::stacked::Proof<Tree, DefaultPieceHasher>;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SealCommitPhase1Output<Tree: MerkleTreeTrait> {

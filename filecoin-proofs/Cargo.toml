@@ -9,6 +9,8 @@ repository = "https://github.com/filecoin-project/rust-fil-proofs"
 readme = "README.md"
 
 [dependencies]
+filecoin-proofs-v2 = { package = "filecoin-proofs", git = "https://github.com/cryptonemo/rust-fil-proofs", branch = "upgrade-testing" }
+storage-proofs-v2 = { package = "storage-proofs", git = "https://github.com/cryptonemo/rust-fil-proofs", branch = "upgrade-testing" }
 storage-proofs = { version = "^5.0.0", path = "../storage-proofs" }
 bitvec = "0.17"
 chrono = "0.4"

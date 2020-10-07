@@ -7,11 +7,14 @@ use ff::Field;
 use paired::bls12_381::Fr;
 use rand::{Rng, SeedableRng};
 use rand_xorshift::XorShiftRng;
-use storage_proofs::hasher::Hasher;
-use storage_proofs::sector::*;
+
+use storage_proofs_v2::hasher::Hasher;
+use storage_proofs_v2::sector::*;
 use tempfile::NamedTempFile;
 
-use filecoin_proofs::*;
+use filecoin_proofs_v2::*;
+
+//use filecoin_proofs_v2::generate_fallback_sector_challenges;
 
 static INIT_LOGGER: Once = Once::new();
 fn init_logger() {
@@ -195,14 +198,15 @@ fn winning_post<Tree: 'static + MerkleTreeTrait>(sector_size: u64, fake: bool) -
     //
     // 2)
     let mut vanilla_proofs = Vec::with_capacity(sector_count);
-    let challenges = generate_fallback_sector_challenges::<Tree>(
+    let challenges = filecoin_proofs_v2::generate_fallback_sector_challenges::<Tree>(
         &config,
         &randomness,
         &vec![sector_id],
         prover_id,
+        true,
     )?;
 
-    let single_proof = generate_single_vanilla_proof::<Tree>(
+    let single_proof = filecoin_proofs_v2::generate_single_vanilla_proof::<Tree>(
         &config,
         sector_id,
         &private_replica_info,
@@ -211,7 +215,7 @@ fn winning_post<Tree: 'static + MerkleTreeTrait>(sector_size: u64, fake: bool) -
 
     vanilla_proofs.push(single_proof);
 
-    let proof = generate_winning_post_with_vanilla::<Tree>(
+    let proof = filecoin_proofs_v2::generate_winning_post_with_vanilla::<Tree>(
         &config,
         &randomness,
         prover_id,
@@ -388,6 +392,7 @@ fn window_post<Tree: 'static + MerkleTreeTrait>(
         &randomness,
         &replica_sectors,
         prover_id,
+        false,
     )?;
 
     let mut vanilla_proofs = Vec::with_capacity(replica_sectors.len());

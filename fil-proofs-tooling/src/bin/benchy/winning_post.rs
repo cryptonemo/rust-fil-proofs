@@ -1,17 +1,17 @@
 use std::io::stdout;
 
 use anyhow::anyhow;
-use fil_proofs_tooling::shared::{create_replica, PROVER_ID, RANDOMNESS};
-use fil_proofs_tooling::{measure, Metadata};
-use filecoin_proofs::constants::{WINNING_POST_CHALLENGE_COUNT, WINNING_POST_SECTOR_COUNT};
-use filecoin_proofs::types::PoStConfig;
-use filecoin_proofs::{
+use fil_proofs_tooling_v2::shared::{create_replica, PROVER_ID, RANDOMNESS};
+use fil_proofs_tooling_v2::{measure, Metadata};
+use filecoin_proofs_v2::constants::{WINNING_POST_CHALLENGE_COUNT, WINNING_POST_SECTOR_COUNT};
+use filecoin_proofs_v2::types::PoStConfig;
+use filecoin_proofs_v2::{
     generate_winning_post, generate_winning_post_sector_challenge, verify_winning_post, with_shape,
     PoStType,
 };
 use log::info;
 use serde::Serialize;
-use storage_proofs::merkle::MerkleTreeTrait;
+use storage_proofs_v2::merkle::MerkleTreeTrait;
 
 #[derive(Serialize)]
 #[serde(rename_all = "kebab-case")]

@@ -1,17 +1,24 @@
 use anyhow::{ensure, Result};
-use storage_proofs::porep::stacked::{self, LayerChallenges, StackedDrg};
-use storage_proofs::post::fallback;
-use storage_proofs::proof::ProofScheme;
+use storage_proofs_v2::porep::stacked::{self, LayerChallenges, StackedDrg};
+use storage_proofs_v2::post::fallback;
+use storage_proofs_v2::proof::ProofScheme;
 
-use crate::constants::*;
-use crate::types::{MerkleTreeTrait, PaddedBytesAmount, PoStConfig};
+use filecoin_proofs_v2::constants::*;
+use filecoin_proofs_v2::types::{MerkleTreeTrait, PaddedBytesAmount, PoStConfig};
 
-type WinningPostSetupParams = fallback::SetupParams;
-pub type WinningPostPublicParams = fallback::PublicParams;
+pub use filecoin_proofs_v2::parameters::{
+    WinningPostSetupParams,
+    WinningPostPublicParams,
+    WindowPostSetupParams,
+    WindowPostPublicParams,
+    public_params,
+    winning_post_public_params,
+    winning_post_setup_params,
+    window_post_setup_params,
+    setup_params,
+};
 
-type WindowPostSetupParams = fallback::SetupParams;
-pub type WindowPostPublicParams = fallback::PublicParams;
-
+/*
 pub fn public_params<Tree: 'static + MerkleTreeTrait>(
     sector_bytes: PaddedBytesAmount,
     partitions: usize,
@@ -159,3 +166,4 @@ mod tests {
         assert_eq!(params.sector_size, 2048);
     }
 }
+*/

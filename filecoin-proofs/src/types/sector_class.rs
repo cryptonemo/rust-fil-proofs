@@ -1,5 +1,7 @@
-use crate::types::*;
+use filecoin_proofs_v2::types::*;
 
+pub use filecoin_proofs_v2::SectorClass;
+/*
 #[derive(Clone, Copy, Debug)]
 pub struct SectorClass {
     pub sector_size: SectorSize,
@@ -21,3 +23,4 @@ impl From<SectorClass> for PoRepConfig {
         }
     }
 }
+*/

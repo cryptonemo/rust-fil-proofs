@@ -7,13 +7,13 @@ use bellperson::groth16;
 use lazy_static::lazy_static;
 use log::info;
 use paired::bls12_381::Bls12;
-use storage_proofs::compound_proof::CompoundProof;
-use storage_proofs::porep::stacked::{StackedCompound, StackedDrg};
-use storage_proofs::post::fallback;
+use storage_proofs_v2::compound_proof::CompoundProof;
+use storage_proofs_v2::porep::stacked::{StackedCompound, StackedDrg};
+use storage_proofs_v2::post::fallback;
 
-use crate::constants::DefaultPieceHasher;
-use crate::parameters::{public_params, window_post_public_params, winning_post_public_params};
-use crate::types::*;
+use filecoin_proofs_v2::constants::DefaultPieceHasher;
+use filecoin_proofs_v2::parameters::{public_params, window_post_public_params, winning_post_public_params};
+use filecoin_proofs_v2::types::*;
 
 type Bls12GrothParams = groth16::MappedParameters<Bls12>;
 pub type Bls12VerifyingKey = groth16::VerifyingKey<Bls12>;

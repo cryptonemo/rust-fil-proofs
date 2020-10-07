@@ -2,10 +2,16 @@ use std::io::{self, Read};
 
 use anyhow::{ensure, Result};
 use rayon::prelude::*;
-use storage_proofs::hasher::{HashFunction, Hasher};
+use storage_proofs_v2::hasher::{HashFunction, Hasher};
 
-use crate::constants::DefaultPieceHasher;
+use filecoin_proofs_v2::constants::DefaultPieceHasher;
 
+pub use filecoin_proofs_v2::commitment_reader::{
+    CommitmentReader,
+    
+};
+
+/*
 /// Calculates comm-d of the data piped through to it.
 /// Data must be bit padded and power of 2 bytes.
 pub struct CommitmentReader<R> {
@@ -90,7 +96,7 @@ mod tests {
 
     use crate::types::*;
 
-    use storage_proofs::pieces::generate_piece_commitment_bytes_from_source;
+    use storage_proofs_v2::pieces::generate_piece_commitment_bytes_from_source;
 
     #[test]
     fn test_commitment_reader() {
@@ -113,3 +119,4 @@ mod tests {
         assert_eq!(&commitment1[..], AsRef::<[u8]>::as_ref(&commitment2));
     }
 }
+*/

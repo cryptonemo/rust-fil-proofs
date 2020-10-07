@@ -5,18 +5,30 @@ use rand::RngCore;
 use rayon::prelude::*;
 use tempfile::NamedTempFile;
 
-use filecoin_proofs::constants::POREP_PARTITIONS;
-use filecoin_proofs::types::{
+use filecoin_proofs_v2::constants::POREP_PARTITIONS;
+use filecoin_proofs_v2::types::{
     MerkleTreeTrait, PaddedBytesAmount, PoRepConfig, SectorSize, UnpaddedBytesAmount,
 };
-use filecoin_proofs::{
+use filecoin_proofs_v2::{
     add_piece, seal_pre_commit_phase1, seal_pre_commit_phase2, validate_cache_for_precommit_phase2,
     PieceInfo, PoRepProofPartitions, PrivateReplicaInfo, PublicReplicaInfo, SealPreCommitOutput,
 };
-use storage_proofs::sector::SectorId;
+use storage_proofs_v2::sector::SectorId;
 
-use crate::{measure, FuncMeasurement};
+use fil_proofs_tooling_v2::{measure, FuncMeasurement};
 
+pub use fil_proofs_tooling_v2::shared::{
+    PROVER_ID,
+    RANDOMNESS,
+    TICKET_BYTES,
+    PreCommitReplicaOutput,
+    create_piece,
+    create_replica,
+    create_replicas,
+    
+};
+
+/*
 pub const PROVER_ID: [u8; 32] = [9; 32];
 pub const RANDOMNESS: [u8; 32] = [44; 32];
 pub const TICKET_BYTES: [u8; 32] = [1; 32];
@@ -243,3 +255,4 @@ pub fn create_replicas<Tree: 'static + MerkleTreeTrait>(
 
     (porep_config, Some((out, seal_pre_commit_outputs)))
 }
+*/

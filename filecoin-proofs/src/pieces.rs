@@ -7,17 +7,28 @@ use std::sync::Mutex;
 use anyhow::{ensure, Context, Result};
 use lazy_static::lazy_static;
 use log::info;
-use storage_proofs::hasher::{HashFunction, Hasher};
-use storage_proofs::util::NODE_SIZE;
+use storage_proofs_v2::hasher::{HashFunction, Hasher};
+use storage_proofs_v2::util::NODE_SIZE;
 
-use crate::constants::{
+use filecoin_proofs_v2::constants::{
     DefaultPieceHasher,
     MINIMUM_RESERVED_BYTES_FOR_PIECE_IN_FULLY_ALIGNED_SECTOR as MINIMUM_PIECE_SIZE,
 };
-use crate::types::{
+use filecoin_proofs_v2::types::{
     Commitment, PaddedBytesAmount, PieceInfo, SectorSize, UnpaddedByteIndex, UnpaddedBytesAmount,
 };
 
+pub use filecoin_proofs_v2::pieces:: {
+    verify_pieces,
+    compute_comm_d,
+    PieceAlignment,
+    sum_piece_bytes_with_alignment,
+    get_piece_start_byte,
+    get_piece_alignment,
+    get_aligned_source,
+};
+
+/*
 /// Verify that the provided `piece_infos` and `comm_d` match.
 pub fn verify_pieces(
     comm_d: &Commitment,
@@ -360,9 +371,9 @@ mod tests {
     use paired::bls12_381::Fr;
     use rand::{Rng, RngCore, SeedableRng};
     use rand_xorshift::XorShiftRng;
-    use storage_proofs::drgraph::Graph;
-    use storage_proofs::merkle::create_base_merkle_tree;
-    use storage_proofs::porep::stacked::StackedBucketGraph;
+    use storage_proofs_v2::drgraph::Graph;
+    use storage_proofs_v2::merkle::create_base_merkle_tree;
+    use storage_proofs_v2::porep::stacked::StackedBucketGraph;
 
     #[test]
     fn test_empty_source() {
@@ -624,7 +635,7 @@ mod tests {
     #[ignore] // slow test
     #[test]
     fn test_verify_random_pieces() -> Result<()> {
-        use crate::pieces::*;
+        use filecoin_proofs_v2::pieces::*;
 
         let rng = &mut XorShiftRng::from_seed(crate::TEST_SEED);
 
@@ -759,3 +770,4 @@ mod tests {
         x - (x >> 1)
     }
 }
+ */
