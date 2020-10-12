@@ -5,7 +5,7 @@ use storage_proofs::proof::ProofScheme;
 
 use crate::constants::*;
 
-use crate::types::PoStConfig;
+use crate::types::{PoStConfig, PoRepProofPartitions};
 pub use crate::types::{MerkleTreeTrait, PaddedBytesAmount};
 
 pub type WinningPostSetupParams = storage_proofs::post::fallback::SetupParams;
@@ -127,7 +127,7 @@ fn select_challenges(
 mod tests {
     use super::*;
 
-    use crate::types::PoStType;
+    use crate::types::{PoStType, PoRepProofPartitions};
 
     #[test]
     fn partition_layer_challenges_test() {
@@ -137,7 +137,7 @@ mod tests {
                 .challenges_count_all()
         };
         // Update to ensure all supported PoRepProofPartitions options are represented here.
-        assert_eq!(6, f(usize::from(crate::PoRepProofPartitions(2))));
+        assert_eq!(6, f(usize::from(PoRepProofPartitions(2))));
 
         assert_eq!(12, f(1));
         assert_eq!(6, f(2));

@@ -16,7 +16,7 @@ pub use filecoin_proofs_v2::constants::*;
 pub use filecoin_proofs_v2::types::*;
 pub use filecoin_proofs_v2::util::*;
 pub use filecoin_proofs_v2::{
-    PoRepConfig, PoRepProofPartitions, PoStConfig, PoStType, PrivateReplicaInfo, PublicReplicaInfo,
+    PoStConfig, PoStType, PoRepConfig, PoRepProofPartitions, PrivateReplicaInfo, PublicReplicaInfo,
     SectorSize,
 };
 
@@ -30,6 +30,8 @@ pub use filecoin_proofs_v2::{
 };
 
 use filecoin_proofs::{
+    PoStConfig as PoStConfigV1,
+    PoStType as PoStTypeV1,
     generate_fallback_sector_challenges, generate_window_post, generate_window_post_with_vanilla,
     verify_window_post,
 };
@@ -144,11 +146,11 @@ fn test_winning_post_empty_sector_challenge() -> Result<()> {
     let mut randomness = [0u8; 32];
     randomness.copy_from_slice(AsRef::<[u8]>::as_ref(&random_fr));
 
-    let config = PoStConfig {
+    let config = filecoin_proofs_v2::PoStConfig {
         sector_size: sector_size.into(),
         sector_count,
         challenge_count: WINNING_POST_CHALLENGE_COUNT,
-        typ: PoStType::Winning,
+        typ: filecoin_proofs_v2::PoStType::Winning,
         priority: false,
     };
 
@@ -189,6 +191,14 @@ fn winning_post<Tree: 'static + MerkleTreeTrait>(sector_size: u64, fake: bool) -
         priority: false,
     };
 
+    let config_v1 = PoStConfigV1 {
+        sector_size: sector_size.into(),
+        sector_count,
+        challenge_count: WINNING_POST_CHALLENGE_COUNT,
+        typ: PoStTypeV1::Winning,
+        priority: false,
+    };
+
     let challenged_sectors = generate_winning_post_sector_challenge::<Tree>(
         &config,
         &randomness,
@@ -217,7 +227,7 @@ fn winning_post<Tree: 'static + MerkleTreeTrait>(sector_size: u64, fake: bool) -
     // 2)
     let mut vanilla_proofs = Vec::with_capacity(sector_count);
     let challenges = generate_fallback_sector_challenges::<Tree>(
-        &config,
+        &config_v1,
         &randomness,
         &vec![sector_id],
         prover_id,

@@ -18,7 +18,6 @@ pub use filecoin_proofs_v2::types::{
     TemporaryAux,
     VanillaProof,
 };
-pub use filecoin_proofs_v2::PublicReplicaInfo;
 pub use filecoin_proofs_v2::{
     clear_cache, clear_caches, compute_comm_d, generate_winning_post,
     generate_winning_post_sector_challenge, generate_winning_post_with_vanilla, unseal_range,
@@ -43,10 +42,10 @@ use storage_proofs::util::default_rows_to_discard;
 
 pub use crate::api::util::{get_base_tree_leafs, get_base_tree_size};
 pub use crate::caches::{get_post_params, get_post_verifying_key};
+pub use crate::types::{ChallengeSeed, Commitment, PoStConfig, PoStType, PoRepProofPartitions, SectorSize};
 
 use crate::api::util::as_safe_commitment;
 use crate::parameters::window_post_setup_params;
-pub use crate::types::{ChallengeSeed, Commitment, PoStConfig, PoStType, SectorSize};
 
 
 /// Generates the challenges per SectorId required for either a Window
@@ -222,7 +221,7 @@ impl<Tree: 'static + crate::types::MerkleTreeTrait> PrivateReplicaInfo<Tree> {
         &self,
         sector_size: SectorSize,
     ) -> Result<
-        storage_proofs::merkle::MerkleTreeWrapper<
+        crate::types::MerkleTreeWrapper<
             Tree::Hasher,
             Tree::Store,
             Tree::Arity,
@@ -261,6 +260,36 @@ impl<Tree: 'static + crate::types::MerkleTreeTrait> PrivateReplicaInfo<Tree> {
     }
 }
 
+/// The minimal information required about a replica, in order to be able to verify
+/// a PoSt over it.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct PublicReplicaInfo {
+    /// The replica commitment.
+    comm_r: Commitment,
+}
+
+impl std::cmp::Ord for PublicReplicaInfo {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.comm_r.as_ref().cmp(other.comm_r.as_ref())
+    }
+}
+
+impl std::cmp::PartialOrd for PublicReplicaInfo {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PublicReplicaInfo {
+    pub fn new(comm_r: Commitment) -> Result<Self> {
+        ensure!(comm_r != [0; 32], "Invalid all zero commitment (comm_r)");
+        Ok(PublicReplicaInfo { comm_r })
+    }
+
+    pub fn safe_comm_r<T: Domain>(&self) -> Result<T> {
+        as_safe_commitment(&self.comm_r, "comm_r")
+    }
+}
 
 /// Generates a single vanilla proof required for either Window proof-of-spacetime
 /// or Winning proof-of-spacetime.
@@ -611,7 +640,7 @@ pub fn verify_window_post<Tree: 'static + crate::types::MerkleTreeTrait>(
     replicas: &BTreeMap<SectorId, PublicReplicaInfo>,
     prover_id: ProverId,
     proof: &[u8],
-) -> Result<bool>  where <<Tree as storage_proofs::merkle::MerkleTreeTrait>::Hasher as storage_proofs::hasher::Hasher>::Domain: storage_proofs::hasher::Domain{
+) -> Result<bool> {
     info!("verify_window_post:start");
 
     ensure!(

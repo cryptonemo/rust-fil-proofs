@@ -35,6 +35,7 @@ pub use storage_proofs::porep::stacked::Labels;
 pub type DataTree = storage_proofs::merkle::BinaryMerkleTree<DefaultPieceHasher>;
 
 pub use storage_proofs::merkle::MerkleProof;
+pub use storage_proofs::hasher::{Domain, Hasher};
 //pub use storage_proofs_v2::merkle::MerkleTreeTrait;
 
 pub use filecoin_proofs_v2::types::{
@@ -48,7 +49,7 @@ pub use filecoin_proofs_v2::types::{
     OCT_ARITY,
 };
 
-pub use storage_proofs::merkle::MerkleTreeTrait;
+pub use storage_proofs::merkle::{MerkleTreeTrait, MerkleTreeWrapper};
 /*
 /// Arity for oct trees, used for comm_r_last.
 pub const OCT_ARITY: usize = 8;
